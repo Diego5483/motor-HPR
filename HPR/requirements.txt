@@ -21,3 +21,8 @@ pytest-cov==7.1.0
 
 # Cliente de pruebas para la API (TestClient, P1/P4)
 httpx==0.28.1
+
+# Interfaz de escritorio nativa (E1) y voz local (S2/E5)
+customtkinter==6.0.0
+pyttsx3==2.99
+SpeechRecognition==3.17.0
