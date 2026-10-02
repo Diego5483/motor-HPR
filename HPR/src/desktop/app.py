@@ -3,18 +3,37 @@
 Interfaz ligera y local: sin Streamlit ni navegador web (E1).
 
 - Chat con el núcleo determinista HPR (D1).
+- Identidad visual: el escudo oficial del proyecto es el
+  icono de la ventana nativa y el logotipo de la cabecera.
 - Voz local: síntesis con pyttsx3 y reconocimiento offline
   con CMU Sphinx; nunca servicios remotos (S2, E5).
 """
 
 import threading
+from pathlib import Path
 
 import customtkinter as ctk
+from PIL import Image
 
 from ..models.contracts import IDENTIDAD_DETERMINISTA
 from ..security_agent import HPRSecurityEngine
 from .agent import AgenteChat
 from .voice import VozLocal
+
+#: Directorio de recursos de la aplicación (ruta canónica, D3).
+_DIRECTORIO_RECURSOS = Path(__file__).resolve().parent / "assets"
+
+
+def _ruta_recurso(nombre: str) -> Path:
+    """Resuelve la ruta canónica de un recurso local de la aplicación."""
+    return _DIRECTORIO_RECURSOS / nombre
+
+
+#: Icono principal de la ventana: escudo oficial del proyecto HPR.
+RUTA_ICONO = _ruta_recurso("hpr.ico")
+
+#: Logotipo oficial de la cabecera de la aplicación.
+RUTA_LOGO = _ruta_recurso("hpr_logo.png")
 
 
 class AplicacionHPR(ctk.CTk):
@@ -28,8 +47,39 @@ class AplicacionHPR(ctk.CTk):
 
         self.title("Motor HPR — Escritorio Local")
         self.geometry("900x640")
+        self._cargar_icono_ventana()
         self._construir_interfaz()
         self._actualizar_estado()
+
+    def _cargar_icono_ventana(self) -> None:
+        """Establece el escudo oficial como icono de la ventana nativa."""
+        if not RUTA_ICONO.exists():
+            return
+        try:
+            self.iconbitmap(str(RUTA_ICONO))
+        except Exception:
+            # Plataforma sin soporte para .ico: degradación silenciosa.
+            pass
+
+    def _construir_encabezado(self, marco: ctk.CTkFrame) -> None:
+        """Cabecera de la aplicación con el logotipo oficial del proyecto."""
+        encabezado = ctk.CTkFrame(marco, fg_color="transparent")
+        encabezado.pack(fill="x", pady=(0, 8))
+
+        if RUTA_LOGO.exists():
+            try:
+                imagen = Image.open(RUTA_LOGO)
+                logotipo = ctk.CTkImage(light_image=imagen, size=(60, 40))
+                ctk.CTkLabel(encabezado, image=logotipo, text="").pack(side="left")
+            except Exception:
+                # Logotipo no legible: la aplicación continúa sin él.
+                pass
+
+        ctk.CTkLabel(
+            encabezado,
+            text="Motor HPR",
+            font=ctk.CTkFont(size=18, weight="bold"),
+        ).pack(side="left", padx=(10, 0))
 
     def _construir_interfaz(self) -> None:
         ctk.set_appearance_mode("dark")
@@ -37,6 +87,8 @@ class AplicacionHPR(ctk.CTk):
 
         marco = ctk.CTkFrame(self)
         marco.pack(fill="both", expand=True, padx=12, pady=12)
+
+        self._construir_encabezado(marco)
 
         self.chat = ctk.CTkTextbox(marco, wrap="word", state="disabled")
         self.chat.pack(fill="both", expand=True, pady=(0, 10))
