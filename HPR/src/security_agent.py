@@ -1,8 +1,29 @@
+"""Adaptador del motor HPR: une la bóveda local con el motor lógico central.
+
+Las tres validaciones raíz (Nexus Root, Epsilon Wall, Sovereign Gate)
+viven en ``src/core/engine.py`` como fuente única de verdad; esta clase
+delega en ellas y añade la carga de la bóveda documental local (E6).
+"""
+
 import os
+
 from docx import Document
 
+from .core.engine import (
+    MENSAJE_BLOQUEO_SOVEREIGN_GATE,
+    MENSAJE_DENEGACION_NEXUS_ROOT,
+    MENSAJE_PIPELINE_VERIFICADO,
+    epsilon_wall_validation,
+    nexus_root_validation,
+    sovereign_gate_validation,
+)
+from .models.contracts import IDENTIDAD_DETERMINISTA
+
+
 class HPRSecurityEngine:
-    def __init__(self, nexus_identity="HPR-CORE-DETERMINISTIC"):
+    """Motor de seguridad HPR: bóveda local más validaciones del núcleo determinista."""
+
+    def __init__(self, nexus_identity: str = IDENTIDAD_DETERMINISTA):
         self.nexus_identity = nexus_identity
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.docs_path = os.path.join(base_dir, "..", "boveda y vitacoras")
@@ -26,28 +47,29 @@ class HPRSecurityEngine:
 
     def nexus_root_validation(self, system_state: dict) -> bool:
         """Regla 1: Valida la identidad inmutable y el propósito del sistema."""
-        return system_state.get("identity") == self.nexus_identity
+        return nexus_root_validation(system_state, self.nexus_identity)
 
     def epsilon_wall_validation(self, response_content: str, ground_truth: list) -> bool:
         """Regla 2: Filtro anti-alucinación basado en verificación estricta."""
-        return all(term in response_content for term in ground_truth)
+        return epsilon_wall_validation(response_content, ground_truth)
 
     def sovereign_gate_validation(self, incoming_payload: str) -> bool:
         """Regla 3: Control de ingesta y mitigación de entradas maliciosas."""
-        if not incoming_payload or len(incoming_payload.strip()) == 0:
-            return False
-        malicious_patterns = ["<script>", "DROP TABLE", "OVERRIDE_ROOT"]
-        return not any(pattern in incoming_payload for pattern in malicious_patterns)
+        return sovereign_gate_validation(incoming_payload)
 
     def process_pipeline(self, payload: str, state: dict, truth: list) -> str:
         """Ejecuta el pipeline completo de seguridad y extrae respuestas de la base de conocimiento HPR."""
         if not self.sovereign_gate_validation(payload):
-            return "BLOQUEO DE SEGURIDAD: SOVEREIGN-GATE: Entrada bloqueada por seguridad."
+            return MENSAJE_BLOQUEO_SOVEREIGN_GATE
         if not self.nexus_root_validation(state):
-            return "Acceso denegado por Nexus Root."
+            return MENSAJE_DENEGACION_NEXUS_ROOT
 
         # Si pasa las validaciones, devolvemos el contenido extraído de la bóveda
         if self.knowledge_base:
-            return f"Pipeline verificado con éxito.\n\nInformación extraída de la Bóveda HPR ({len(self.knowledge_base)} caracteres totales):\n\n{self.knowledge_base[:1500]}..."
+            return (
+                f"{MENSAJE_PIPELINE_VERIFICADO}\n\n"
+                f"Información extraída de la Bóveda HPR ({len(self.knowledge_base)} caracteres totales):\n\n"
+                f"{self.knowledge_base[:1500]}..."
+            )
         else:
             return "Pipeline superado con éxito, pero la bóveda de documentos se encuentra vacía o no se detectaron archivos .docx."
