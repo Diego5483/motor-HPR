@@ -1,0 +1,23 @@
+# Motor HPR — configuración de pruebas y cobertura
+# Constitución del proyecto HPR: reglas P1-P7 (pruebas) y P5 (cobertura medible).
+
+[tool.pytest.ini_options]
+# Ejecución local de la suite desde HPR/ (P6)
+testpaths = ["src"]
+# Medición de cobertura automática en toda ejecución (P5)
+addopts = ["--cov=src", "--cov-branch"]
+
+[tool.coverage.run]
+# Determinismo de la medición: cobertura de ramas sobre el código fuente (P3, P5)
+branch = true
+source = ["src"]
+
+[tool.coverage.report]
+# Límite global acordado (Regla P5). Los módulos de seguridad
+# (src/security_agent.py, src/core/security_agent.py) exigen 100% de ramas.
+fail_under = 80
+show_missing = true
+
+[tool.coverage.paths]
+# Rutas canonicalizadas para mediciones reproducibles (D3)
+source = ["src"]

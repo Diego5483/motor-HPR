@@ -1,0 +1,20 @@
+# Motor HPR — dependencias fijadas con pin exacto
+# Constitución del proyecto HPR: reglas D3 (dependencias exactas) y E3 (entorno declarado).
+# Los rangos abiertos (>=) están prohibidos; el cierre transitivo completo vive en requirements.lock.
+
+# API y validación estricta de contratos (D4)
+fastapi==0.141.1
+pydantic==2.13.5
+
+# Servidor ASGI para ejecución local (E1)
+uvicorn==0.54.0
+
+# Lectura de la bóveda de conocimiento local .docx (E6)
+python-docx==1.2.0
+
+# Interfaz local del agente (E1: HPR Local Agent Interface)
+streamlit==1.64.0
+
+# Framework de pruebas automatizadas y medición de cobertura (P2, P5, P6)
+pytest==9.1.1
+pytest-cov==7.1.0
