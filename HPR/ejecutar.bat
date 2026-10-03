@@ -2,7 +2,9 @@
 title Motor HPR - Escritorio Local
 rem ============================================================
 rem  Motor HPR - Lanzador oficial de la aplicacion de escritorio
-rem  Uso: ejecutar.bat  (doble clic o desde la consola)
+rem  Uso: ejecutar.bat [debug]
+rem    (sin argumentos) lanzamiento limpio sin consola (pythonw)
+rem    debug            lanzamiento con consola para diagnostico
 rem ============================================================
 
 cd /d "%~dp0"
@@ -23,15 +25,23 @@ if not exist "%VENV%\Scripts\activate.bat" (
 
 call "%VENV%\Scripts\activate.bat"
 
-rem --- Arranque de la aplicacion de escritorio ---
 echo [HPR] Iniciando Motor HPR - Escritorio Local...
-python -m src.desktop
+
+rem --- Arranque: por defecto sin consola (pythonw); debug con consola ---
+set "PY=python"
+if exist "%VENV%\Scripts\pythonw.exe" set "PY=pythonw"
+
+if "%~1"=="debug" (
+    python -m src.desktop
+) else (
+    %PY% -m src.desktop
+)
 set "CODIGO=%ERRORLEVEL%"
 
 if not "%CODIGO%"=="0" (
     echo.
     echo [HPR] La aplicacion finalizo con errores ^(codigo %CODIGO%^).
-    echo [HPR] Revisa la salida de la consola para mas detalles.
+    echo [HPR] Ejecuta "ejecutar.bat debug" para ver la traza completa.
 )
 
 echo.

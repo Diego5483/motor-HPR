@@ -55,6 +55,7 @@ python -m venv .venv
 | `boveda y vitacoras/` | Base de conocimiento local (soberanía S1) |
 | `requirements.txt` / `requirements.lock` | Dependencias con pin exacto (D3) |
 | `docs/constitution.md` | Constitución del proyecto (reglas S/E/D/P) |
+| `docs/bitacora-tecnica-2026-10-02.md` | Bitácora de cierre de sesión 2026-10-02 |
 
 ## Voz local
 
