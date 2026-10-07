@@ -11,6 +11,8 @@ viven aquí como fuente única de verdad; el adaptador
 ``src/security_agent.py`` delega en este módulo.
 """
 
+import re
+
 from ..models.contracts import (
     IDENTIDAD_DETERMINISTA,
     EstadoPipeline,
@@ -35,6 +37,12 @@ SEÑALES_EXTERNAS = (
 #: Umbral de cobertura de bóveda interna (porcentaje). Si la consulta contiene
 #: señales externas y la bóveda no cubre el tema, se activa búsqueda web.
 UMBRAL_COBERTURA_BOVDA = 0.3  # 30% de términos deben estar ausentes en la bóveda
+
+#: Trigger sintáctico determinista: prefijo arroba (@) para activar búsqueda externa condicional.
+#: Formato: @identificador (ej. @hpr_confianza, @nivel1, @web_search).
+#: La presencia de un trigger @ validado activa REQUIRE_EXTERNA automáticamente,
+#: bypassing overlap checks para búsquedas confiables bajo los 3 niveles de confianza.
+TRIGGER_ARROBA_PATTERN = re.compile(r"^@\w+|\s@\w+")
 
 #: Mensajes terminales del pipeline (fuente única de verdad).
 MENSAJE_BLOQUEO_SOVEREIGN_GATE = (
@@ -92,6 +100,28 @@ def evaluar_intencion_externa(consulta: str, knowledge_base: str) -> dict:
     # Verifica señales de externalidad
     senales_externas = [t for t in terminos if t in SEÑALES_EXTERNAS]
 
+    # NUEVO: Detección de trigger sintáctico con prefijo arroba (@)
+    # Si el payload incluye un trigger @ validado (ej. @hpr_confianza),
+    # activa REQUIRE_EXTERNA de forma directa y sin ambigüedades.
+    trigger_match = TRIGGER_ARROBA_PATTERN.search(consulta)
+    trigger_validado = trigger_match is not None
+    trigger_ident = trigger_match.group(0) if trigger_match else None
+
+    # NUEVO: Patrones explícitos de activación de confianza conditional
+    # Estos patrones indican que el usuario quiere búsqueda externa a pesar
+    # de que el conocimiento interno pueda ser suficiente
+    PATRONES_CONFIANZA = [
+        "tres niveles de confianza",
+        "niveles de confianza",
+        "grados de confianza",
+        "politica de confianza",
+        "umbral de confianza",
+        "confianza conditional",
+        "busqueda con confianza",
+        "consultar con nivel",
+    ]
+    patrones_coincidentes = [p for p in PATRONES_CONFIANZA if p in consulta.lower()]
+
     # Calcula overlap con knowledge base
     if knowledge_base:
         kb_terminos = set(
@@ -101,7 +131,16 @@ def evaluar_intencion_externa(consulta: str, knowledge_base: str) -> dict:
     else:
         overlap = 0.0
 
-    # Lógica de decisión
+    # Lógica de decisión ENMENDADA
+    # 1. TRIGGER ARROBA (@) validado → REQUIRE_EXTERNA directo (primer trigger estándar)
+    if trigger_validado:
+        return {
+            "requiere_externa": True,
+            "nivel_riesgo": "medio",
+            "justificación": f"Trigger de prefijo arroba detectado: {trigger_ident}. Búsqueda externa activada por sintaxis determinista.",
+        }
+
+    # 2. Señales de externalidad tradicionales + bajo overlap
     if senales_externas and overlap < UMBRAL_COBERTURA_BOVDA:
         return {
             "requiere_externa": True,
@@ -109,6 +148,17 @@ def evaluar_intencion_externa(consulta: str, knowledge_base: str) -> dict:
             "justificación": f"Señales de externalidad detectadas + bajo overlap bóveda ({overlap:.0%})",
         }
 
+    # 3. Sin señales externas pero SÍ patrón de activación de confianza → externa condicional
+    if not senales_externas and patrones_coincidentes:
+        # El usuario explícitamente invoca el framework de confianza
+        # → permitir búsqueda externa con validación de niveles
+        return {
+            "requiere_externa": True,
+            "nivel_riesgo": "medio",
+            "justificación": f"Patrón de activación de confianza detectado: {', '.join(patrones_coincidentes)}. Búsqueda externa condicional activada.",
+        }
+
+    # 3. Sin señales externas SIN patrón de confianza → verificar overlap
     if not senales_externas and overlap < 0.5:
         # Consulta desconocida sin señales externas → también considerar externa
         return {
@@ -117,6 +167,7 @@ def evaluar_intencion_externa(consulta: str, knowledge_base: str) -> dict:
             "justificación": f"Sin señales reconocidas + bajo overlap bóveda ({overlap:.0%})",
         }
 
+    # 4. Caso general: información interna suficiente
     return {
         "requiere_externa": False,
         "nivel_riesgo": "bajo",

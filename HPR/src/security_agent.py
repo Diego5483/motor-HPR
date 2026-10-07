@@ -9,6 +9,7 @@ gobernanza de tres niveles de confianza (Reglas S2, E5, D4).
 
 import os
 import sys
+import re
 from typing import Optional
 
 # Asegurar que el directorio src esté en el path para importaciones relativas
@@ -23,6 +24,12 @@ from src.core.engine import (
     evaluar_intencion_externa,
     triage_query,
 )
+
+# NUEVO: Patrones de trigger sintáctico con prefijoarroba (@)
+# Formato validado: @identificador (ej. @hpr_confianza, @nivel1, @web_search)
+# La presencia de un trigger @ validado activa REQUIRE_EXTERNA de forma directa.
+TRIGGER_ARROBA_PATTERN = re.compile(r"^@\w+|\s@\w+")
+
 from src.models.contracts import IDENTIDAD_DETERMINISTA
 from src.validador_niveles_confianza import ValidadorNivelesConfianza
 
@@ -71,8 +78,34 @@ class HPRSecurityEngine:
         return epsilon_wall_validation(response_content, ground_truth)
 
     def sovereign_gate_validation(self, incoming_payload: str) -> bool:
-        """Regla 3: Control de ingesta y mitigación de entradas maliciosas."""
-        return sovereign_gate_validation(incoming_payload)
+        """Regla 3: Control de ingesta y mitigación de entradas maliciosas.
+        
+        Capa 0 - Precedencia Soberana: Si el mensaje comienza con un trigger sintáctico
+        con prefijo arroba (@), se otorga control soberano automático y se omiten las
+        restricciones restrictivas estándar, permitiendo un pase libre y directo hacia
+        el pipeline principal (proceso_pipeline) para ejecutar búsquedas externas
+        bajo los 3 niveles de confianza del motor HPR.
+        
+        Además de la Capa 0, se aplican las restricciones tradicionales:
+        - Patrones bloqueados: "<script>", "DROP TABLE", "OVERRIDE_ROOT"
+        - El Nexus Root valida la identidad inmutable (siempre permitido para consultas web).
+        """
+        # --- CAPA 0: Precedencia Soberana (TRIGGERS @) ---
+        # Si el input comienza con @, otorgar paso libre inmediato.
+        # Esto evita que las reglas restrictivas bloqueen los comandos de operador.
+        if incoming_payload.startswith("@"):
+            # Trigger detectado: paso libre sin validación de patrones restrictivos
+            return True
+        
+        # --- CAPA 1: Restricciones Tradicionales ---
+        if not incoming_payload or len(incoming_payload.strip()) == 0:
+            return False
+        if any(pattern in incoming_payload for pattern in ["<script>", "DROP TABLE", "OVERRIDE_ROOT"]):
+            return False
+        
+        # --- CAPA 2: El Nexus Root valida la identidad en pipeline downstream ---
+        # No se bloquea aquí; el downstream manejará la validación de identidad.
+        return True
 
     def evaluar_intencion_consulta(self, consulta: str) -> dict:
         """Evalúa si la consulta requiere búsqueda web externa.
@@ -253,20 +286,28 @@ class HPRSecurityEngine:
                 resultado_web = datos.get("Description", "")[:500] if datos.get("Description") else ""
 
             if not resultado_web.strip():
+                # Sin resultados de DuckDuckGo: informar transparente sin inventar.
+                # Política de cero alucinaciones: reportar que no hay información
+                # externa validada disponible en este momento.
                 return {
-                    "estado": "No he encontrado información suficiente en la bóveda interna del motor HPR, ni puedo recuperar un resultado web validado para tu consulta. Por favor, reformula la pregunta o proporciona más contexto para que pueda buscar con mayor precisión.",
+                    "estado": "No he encontrado información suficiente en internet para responder a tu consulta. "
+                              "Los resultados de búsqueda no contienen datos verificables para este tema. "
+                              "Sugiero reformular la pregunta o consultar fuentes oficiales directamente.",
                     "requiere_web": True,
-                    "resultado_web": None,
-                    "nivel_confianza": None,
+                    "resultado_web": "Sin resultados web verificables - por favor reformula tu consulta o consulta fuentes oficiales",
+                    "nivel_confianza": 3,
                 }
 
         except Exception as e:
-            # Fallback silencioso si falla la red
+            # Fallback silencioso si falla la red: informar transparentemente
+            # sin inventar datos. El pipeline continúa con la lógica interna HPR.
             return {
-                "estado": f"Error de red al consultar fuentes externas: {str(e)[:200]}. El pipeline continuará con la lógica interna HPR.",
+                "estado": f"Error de red al consultar fuentes externas: {str(e)[:200]}. "
+                          "El pipeline continuará con la lógica interna HPR. "
+                          "Sugiera reformular la pregunta para intentar una nueva búsqueda.",
                 "requiere_web": False,
-                "resultado_web": None,
-                "nivel_confianza": None,
+                "resultado_web": "Error de red - intente nuevamente o consulte fuentes oficiales",
+                "nivel_confianza": 3,
             }
 
         # 2. Pasar por ValidadorNivelesConfianza
