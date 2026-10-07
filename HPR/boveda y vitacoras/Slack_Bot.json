@@ -1,0 +1,149 @@
+{
+  "name": "Slack Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C06BAG91DT6",
+          "mode": "list",
+          "cachedResultName": "ads"
+        },
+        "text": "={{ $json.output }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        240,
+        0
+      ],
+      "id": "3c095898-4f99-445a-9b54-7655edb4953d",
+      "name": "Slack",
+      "webhookId": "fe6d5589-cee6-4f89-99a8-46cdc33052d0",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "C67SK1rzUAD17iGm",
+          "name": "Slack Direct Login"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "trigger": [
+          "app_mention"
+        ],
+        "channelId": {
+          "__rl": true,
+          "value": "C06BAG91DT6",
+          "mode": "list",
+          "cachedResultName": "ads"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.slackTrigger",
+      "typeVersion": 1,
+      "position": [
+        -360,
+        0
+      ],
+      "id": "40d8c870-d781-49d6-a917-a5e1f82a1919",
+      "name": "Slack Trigger",
+      "webhookId": "d53981c6-82d8-4d57-b07e-7c47f449a573",
+      "credentials": {
+        "slackApi": {
+          "id": "eR9cZ0jEDnZ8d7LY",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.text }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        -140,
+        0
+      ],
+      "id": "882bb7f8-9064-49dd-9627-734dab03a451",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -200,
+        260
+      ],
+      "id": "0c861ad1-907e-4438-8466-8e917e59eeac",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "HDfmiZDKbWWGL2XM",
+          "name": "OpenAi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Slack Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2e012eb0-0ff2-4292-b8af-71b6135f8b75",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5e299a1c9534d3df40876524706c82a0adb5dc6203538ef644e25b7d869a117f"
+  },
+  "id": "GR3KnDv8naJNC80E",
+  "tags": []
+}

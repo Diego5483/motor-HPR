@@ -16,10 +16,25 @@ from ..models.contracts import (
     EstadoPipeline,
     PipelineRequest,
     PipelineResult,
+    CategoriaConsulta,
+    NivelRiesgo,
+    TriageResult,
 )
 
 #: Patrones de ingesta bloqueados por la Sovereign Gate (Regla P4).
 PATRONES_SOVEREIGN_GATE = ("<script>", "DROP TABLE", "OVERRIDE_ROOT")
+
+#: Señales deterministas que indican necesidad de información externa (actualidad, tecnología).
+SEÑALES_EXTERNAS = (
+    "actualidad", "noticias", "última", "hoy", "2024", "2025", "2026",
+    "tecnología",
+    "lanzamiento", "versión", "actualizar", "tendencia", "desarrollo", "investigación",
+    "web", "internet", "internacional", "mercado", "stock", "precio",
+)
+
+#: Umbral de cobertura de bóveda interna (porcentaje). Si la consulta contiene
+#: señales externas y la bóveda no cubre el tema, se activa búsqueda web.
+UMBRAL_COBERTURA_BOVDA = 0.3  # 30% de términos deben estar ausentes en la bóveda
 
 #: Mensajes terminales del pipeline (fuente única de verdad).
 MENSAJE_BLOQUEO_SOVEREIGN_GATE = (
@@ -46,39 +61,139 @@ def epsilon_wall_validation(response_content: str, ground_truth: list[str]) -> b
     return all(term in response_content for term in ground_truth)
 
 
-class HPREngine:
-    """Motor central determinista: aplica las tres raíces y devuelve un contrato (D1, D4)."""
+def evaluar_intencion_externa(consulta: str, knowledge_base: str) -> dict:
+    """Evalúa si una consulta requiere búsqueda web externa (Regla D1/D2).
 
-    def __init__(self, nexus_identity: str = IDENTIDAD_DETERMINISTA) -> None:
-        self.nexus_identity = nexus_identity
+    Flujo:
+    1. Extrae términos de la consulta (mínimo 4 caracteres).
+    2. Verifica presencia de señales de externalidad (actualidad, tecnología, etc.).
+    3. Calcula overlap con la knowledge base.
+    4. Si hay señales externas y bajo overlap → requiere búsqueda web.
 
-    def process(
-        self,
-        payload: str | None,
-        state: dict,
-        truth: list[str],
-    ) -> PipelineResult:
-        """Ejecuta las tres validaciones raíz y devuelve un resultado estructurado.
+    Retorna dict con:
+    - requiere_externa: bool
+    - nivel_riesgo: NivelRiesgo
+    - justificación: str
+    """
+    import re
+    terminos = [
+        termino
+        for termino in re.findall(r"\w+", consulta.lower())
+        if len(termino) >= 4
+    ]
 
-        El parámetro ``truth`` se conserva por paridad de contrato con el
-        pipeline: el muro Epsilon valida *respuestas* frente a la verdad de
-        referencia, no peticiones de entrada.
-        """
-        if not sovereign_gate_validation(payload):
-            return PipelineResult(
-                estado=EstadoPipeline.BLOQUEADO,
-                mensaje=MENSAJE_BLOQUEO_SOVEREIGN_GATE,
-            )
-        if not nexus_root_validation(state, self.nexus_identity):
-            return PipelineResult(
-                estado=EstadoPipeline.DENEGADO,
-                mensaje=MENSAJE_DENEGACION_NEXUS_ROOT,
-            )
-        return PipelineResult(
-            estado=EstadoPipeline.VERIFICADO,
-            mensaje=MENSAJE_PIPELINE_VERIFICADO,
+    if not terminos:
+        return {
+            "requiere_externa": False,
+            "nivel_riesgo": "bajo",
+            "justificación": "consulta sin términos reconocidos",
+        }
+
+    # Verifica señales de externalidad
+    senales_externas = [t for t in terminos if t in SEÑALES_EXTERNAS]
+
+    # Calcula overlap con knowledge base
+    if knowledge_base:
+        kb_terminos = set(
+            termino.lower() for termino in re.findall(r"\w+", knowledge_base)
+        )
+        overlap = len([t for t in terminos if t in kb_terminos]) / len(terminos)
+    else:
+        overlap = 0.0
+
+    # Lógica de decisión
+    if senales_externas and overlap < UMBRAL_COBERTURA_BOVDA:
+        return {
+            "requiere_externa": True,
+            "nivel_riesgo": "medio",
+            "justificación": f"Señales de externalidad detectadas + bajo overlap bóveda ({overlap:.0%})",
+        }
+
+    if not senales_externas and overlap < 0.5:
+        # Consulta desconocida sin señales externas → también considerar externa
+        return {
+            "requiere_externa": True,
+            "nivel_riesgo": "medio",
+            "justificación": f"Sin señales reconocidas + bajo overlap bóveda ({overlap:.0%})",
+        }
+
+    return {
+        "requiere_externa": False,
+        "nivel_riesgo": "bajo",
+        "justificación": f"Información interna suficiente (overlap {overlap:.0%})",
+    }
+
+
+def triage_query(consulta: str | None, knowledge_base: str = "") -> TriageResult:
+    """Clasificación determinista de consultas (D1: misma entrada, misma salida).
+
+    Orden de reglas (primero lo más crítico):
+    1. Ingesta maliciosa (patrones Sovereign Gate) -> SEGURIDAD/CRÍTICO.
+    2. Phishing (guardia de seguridad) -> SEGURIDAD/ALTO.
+    3. Señales operativas -> OPERATIVA/BAJO.
+    4. Señales de conocimiento -> CONOCIMIENTO/BAJO.
+    5. Señales de externalidad -> CONSULTAR WEB/MEDIO.
+    6. Sin señales reconocidas -> DESCONOCIDA/MEDIO (precaución).
+    """
+    texto = (consulta or "").strip()
+
+    if not texto:
+        return TriageResult(
+            categoria=CategoriaConsulta.DESCONOCIDA,
+            nivel_riesgo="medio",
+            razones=["consulta vacía"],
         )
 
-    def process_request(self, request: PipelineRequest) -> PipelineResult:
-        """Punto de entrada por contrato (D4): valida una petición estructurada."""
-        return self.process(request.payload, request.state.model_dump(), request.truth)
+    # 1. Patrones Sovereign Gate
+    patron = next((p for p in PATRONES_SOVEREIGN_GATE if p in texto), None)
+    if patron is not None:
+        return TriageResult(
+            categoria=CategoriaConsulta.SEGURIDAD,
+            nivel_riesgo="crítico",
+            razones=[f"patrón de ingesta bloqueado detectado: {patron}"],
+        )
+
+    # 2. Phishing
+    from .security_agent import inspect_for_phishing
+    if inspect_for_phishing(texto):
+        return TriageResult(
+            categoria=CategoriaConsulta.SEGURIDAD,
+            nivel_riesgo="alto",
+            razones=["coincidencia con patrón de phishing"],
+        )
+
+    # 3. Señales operativas
+    señales_operativas = ("estado", "estatus", "en línea", "latencia", "rendimiento", "salud")
+    senales = [s for s in señales_operativas if s in texto.lower()]
+    if senales:
+        return TriageResult(
+            categoria=CategoriaConsulta.OPERATIVA,
+            nivel_riesgo="bajo",
+            razones=[f"señal operativa: {s}" for s in senales],
+        )
+
+    # 4. Señales de conocimiento
+    señales_conocimiento = ("qué", "cuál", "cómo", "por qué", "cuándo", "dónde", "quién")
+    senales = [s for s in señales_conocimiento if s in texto.lower()]
+    if senales:
+        return TriageResult(
+            categoria=CategoriaConsulta.CONOCIMIENTO,
+            nivel_riesgo="bajo",
+            razones=[f"señal de conocimiento: {s}" for s in senales],
+        )
+
+    # 5. Evaluar intencion externa
+    eval_externa = evaluar_intencion_externa(consulta, knowledge_base)
+    if eval_externa["requiere_externa"]:
+        return TriageResult(
+            categoria=CategoriaConsulta.CONOCIMIENTO,
+            nivel_riesgo=eval_externa["nivel_riesgo"],
+            razones=[eval_externa["justificación"]],
+        )
+
+    # 6. Sin señales reconocidas
+    return TriageResult(
+        categoria=CategoriaConsulta.DESCONOCIDA,
+        nivel_riesgo="medio",
+        razones=["sin señales reconocidas"],
+    )

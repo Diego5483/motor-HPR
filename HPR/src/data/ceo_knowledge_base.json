@@ -1,0 +1,32 @@
+{
+  "version": "2.0",
+  "metadata": {
+    "source": "Estudio de CEO con IA - Consolidado con bases de agentes HPR",
+    "domain": "Arquitectura HPR e Inteligencia Artificial",
+    "last_updated": "2026-10-04",
+    "total_agents": 5,
+    "total_nodes": 68,
+    "total_connections": 52
+  },
+  "core_pillars": [
+    {
+      "id": "pillar_1",
+      "title": "Adopción Estratégica de IA en Liderazgo",
+      "description": "Directrices sobre cómo los líderes ejecutivos integran modelos predictivos y agentes autónomos en la toma de decisiones."
+    },
+    {
+      "id": "pillar_2",
+      "title": "Arquitectura de Datos y Confiabilidad",
+      "description": "Marcos de referencia para asegurar la trazabilidad, validación por niveles de confianza y gobernanza de la información."
+    },
+    {
+      "id": "pillar_3",
+      "title": "Agentes de Automatización HPR",
+      "description": "Nódulos y flujos de trabajo de agentes automatizados detectados en la bóveda operativa: Appointment Setter (6 nodos, 5 conexiones), Shorts Automation (27 nodos, 20 conexiones), Slack Bot (4 nodos, 3 conexiones) y Web Scraper (5 nodos, 4 conexiones)."
+    }
+  ],
+  "parameters": {
+    "confidence_alignment": true,
+    "priority_weight": "high"
+  }
+}

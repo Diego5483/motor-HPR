@@ -1,0 +1,2978 @@
+{
+  "name": "Shorts Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -500,
+        -220
+      ],
+      "id": "09175bc5-d1cd-4391-bb5f-8b5704c3a98a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "CHATGPT-4O-LATEST"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are an AI designed to generate compelling, viral video shorts ideas for social media. Make it jungle themed e.g. about animals in the jungle.  Make it fun and story based.\n\nEach output should follow this exact format:\n\nTitle: Write a catchy, attention-grabbing video title. Add 5 to 10 popular and relevant hashtags.\n\nIdea: In 1 to 2 sentences, describe what happens in the video. Be specific and visual.\n\nEnvironment: Briefly set the scene. Where does it take place? What is the mood? Mention lighting, weather, and any relevant atmosphere details.\n\nStatus: Always output \"for production\".\n\nDo not add any extra text or explanations. Only output these four fields, each starting on a new line, using this format:\n\nvbnet\nCopy\nEdit\nTitle: [Your title here]\nIdea: [Short idea description here]\nEnvironment: [Short environment description here]\nStatus: for production\nExample:\n\nvbnet\nCopy\nEdit\nTitle: Diver Removes Net from Whale 🐋 #whalerescue #marinelife #oceanconservation #diversunite #love #nature #photooftheday #beautiful #ai #viral #trendingnow #explorepage\nIdea: Diver carefully cuts fishing net tangled around humpback whale's fin.\nEnvironment: Open ocean, bright sunlight, diver in wetsuit, whale near surface, cinematic realism.\nStatus: for production\nOnly generate the formatted output with no introduction or notes. Be as creative and specific as possible."
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -260,
+        -220
+      ],
+      "id": "043f4afe-f7f2-472d-a0b9-acd4a26ef76d",
+      "name": "Idea Generator",
+      "credentials": {
+        "openAiApi": {
+          "id": "HDfmiZDKbWWGL2XM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Stage 1: \nIdea Generator",
+        "height": 100,
+        "width": 180,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        -220
+      ],
+      "id": "4965c7dc-fe81-4e06-a93f-9eb42da6cca6",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1jutZAeLGQwSYGoWf6Cxefseu5sT17LO0y-abu3XuHkU",
+          "mode": "list",
+          "cachedResultName": "N8N Video Sheet Template",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jutZAeLGQwSYGoWf6Cxefseu5sT17LO0y-abu3XuHkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jutZAeLGQwSYGoWf6Cxefseu5sT17LO0y-abu3XuHkU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "IDEA": "={{ $json.message.content.Idea }}",
+            "CAPTION": "={{ $json.message.content.Title }}",
+            "Environment": "={{ $json.message.content.Environment }}",
+            "PRODUCTION": "for production",
+            "ID": "==ROW()-1"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IDEA",
+              "displayName": "IDEA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CAPTION",
+              "displayName": "CAPTION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PRODUCTION",
+              "displayName": "PRODUCTION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Environment",
+              "displayName": "Environment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Final Output",
+              "displayName": "Final Output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -500,
+        -60
+      ],
+      "id": "9c003ce2-6b13-48ee-97ac-cd2134358070",
+      "name": "Idea to Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6F5KjMHe0V0sZC8i",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Stage 2:\nVideo Prompts",
+        "height": 100,
+        "width": 180,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        -60
+      ],
+      "id": "f606fa67-652f-41a1-9351-16c571e31e89",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "CHATGPT-4O-LATEST"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a hyper-realistic prompt engine built for generating ultra-specific, documentary-style image prompts. Make the prompts simple and easy.\n\nYour objective is to output a 13-scene static photo sequence capturing {{ $json.IDEA }}\n\nEach scene must meet all of the following criteria:\n\nVisual Style Requirements:\n\nBrutally detailed and grounded in cinematic realism.\n\nShow only frozen action shots — no motion, no flow, no prep, no aftermath.\n\nComposition must cover wide or mid-scale frames about {{ $json.IDEA }}\n\nEmphasize {{ $json.Environment }}\n\nThe tone should feel clinical and rugged — not poetic, abstract, or cinematic in a fantasy sense.\n\nAbsolutely no storytelling. No transitions. No drama. No metaphors.\n\nNever use camera angles or movement terminology.\n\nPrompt Rules:\n\nEach scene is a single, isolated moment — no series, no “then,” no setup.\n\nMust use third-person cinematic description.\n\nMax 500 characters per scene.\n\nMust follow the Idea and Environment inputs exactly — no improvising.\n\nCore Inputs:\nIdea: {{ $json.IDEA }}\nEnvironment: {{ $json.Environment }}\n\nOutput Template:\nIdea: {{ $json.IDEA }}\nEnvironment: {{ $json.Environment }}\n\nScene 1: \"...\"\nScene 2: \"...\"\nScene 3: \"...\"\nScene 4: \"...\"\nScene 5: \"...\"\nScene 6: \"...\"\nScene 7: \"...\"\nScene 8: \"...\"\nScene 9: \"...\"\nScene 10: \"...\"\nScene 11: \"...\"\nScene 12: \"...\"\nScene 13: \"...\""
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -260,
+        -60
+      ],
+      "id": "5b29ab4c-bd70-46d1-a3da-6fd5f57c6552",
+      "name": "Prompt Generator",
+      "credentials": {
+        "openAiApi": {
+          "id": "HDfmiZDKbWWGL2XM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawScenes;\n\ntry {\n  const content = items[0].json.message.content;\n\n  if (content && typeof content === \"object\") {\n    rawScenes = Object.entries(content)\n      .filter(([key]) => key.startsWith(\"Scene\"))\n      .map(([, value]) => value); // Pull just the text content of each scene\n  } else {\n    throw new Error(\"Scene data is missing or not formatted as an object.\");\n  }\n\n} catch (error) {\n  throw new Error(\"Scene extraction failed: \" + error.message);\n}\n\nconst formattedOutput = rawScenes.map(sceneText => ({\n  description: sceneText\n}));\n\nreturn formattedOutput;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        -60
+      ],
+      "id": "49e88181-028b-4328-ad4d-6e2ca6bb812c",
+      "name": "Format Prompts"
+    },
+    {
+      "parameters": {
+        "content": "# Stage 3:\nGenerate Images",
+        "height": 100,
+        "width": 180,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        140
+      ],
+      "id": "31fb770c-a18e-4d80-91b2-a3fe19ebb48a",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/flux/schnell",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Key 413de017-d524-4fde-a79f-c4925eaee90b:cf6405dbeec5d084913c0bd501eeddce"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={   \"prompt\": \"{{ $json.description }}\",   \"image_size\": \"portrait_16_9\" }",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -500,
+        140
+      ],
+      "id": "93436d55-84e3-49c3-aa49-a04b983fb583",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -260,
+        140
+      ],
+      "id": "0eca64d9-ed06-4feb-ac3f-ffdfdb1fd2e9",
+      "name": "Wait",
+      "webhookId": "270bd2b7-4a10-4500-9044-33fb96c710fa"
+    },
+    {
+      "parameters": {
+        "url": "=https://queue.fal.run/fal-ai/flux-pro/requests/{{ $json.request_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Key 413de017-d524-4fde-a79f-c4925eaee90b:cf6405dbeec5d084913c0bd501eeddce"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={   \"prompt\": \"{{ $json.description }}\",   \"image_size\": \"portrait_16_9\" }",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        140
+      ],
+      "id": "33b6aeb6-12d0-49f2-a069-d989bc22513b",
+      "name": "Get Images"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "CHATGPT-4O-LATEST"
+        },
+        "text": "=You're a prompt generator, for short, cinema style videos.\n\nYour role is to analyze uploaded images and generate a single, realistic, third-person cinematic prompt. Keep the prompts simple and easy to understand. Use simple language.\n\nBase everything on this prompt:\n{{ $('Format Prompts').item.json.description }}\n\n(context only, do not echo or paraphrase)\n\nGeneration Rules\nOnly one physical action per prompt.\n\nSentence limit: under 300 characters.\n\nThird-person only. No \"I\", \"you\", or POV phrasing.\n\nInclude environmental details.\n\nAvoid all cinematic words like \"camera\", \"scene\", or movement verbs (e.g., “pans”, “zooms”).\n\nNo storytelling. Each line is a static snapshot.\n\nUse the uploaded image + this system to auto-generate 1 frozen, text-based scene prompt, then send it to the video engine to create an ultra-short cinematic clip. ",
+        "imageUrls": "={{ $json.images[0].url }}",
+        "options": {
+          "detail": "high"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -500,
+        320
+      ],
+      "id": "2ca265e4-5bac-4f26-96ef-2e647e1e7f36",
+      "name": "Create Video Prompts",
+      "credentials": {
+        "openAiApi": {
+          "id": "HDfmiZDKbWWGL2XM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        320
+      ],
+      "id": "ee584991-314b-4d85-8990-a6986ae3ff22",
+      "name": "Wait1",
+      "webhookId": "270bd2b7-4a10-4500-9044-33fb96c710fa"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/kling-video/v1.6/standard/image-to-video",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Key 413de017-d524-4fde-a79f-c4925eaee90b:cf6405dbeec5d084913c0bd501eeddce"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"prompt\": \"{{ $json.content }}\",\n  \"image_url\": \"{{ $('Get Images').item.json.images[0].url }}\",\n  \"duration\": \"5\",\n  \"aspect_ratio\": \"9:16\",\n  \"negative_prompt\": \"bad quality\",\n  \"cfg_scale\": 0.5\n}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -260,
+        320
+      ],
+      "id": "54b19ca3-3f82-4798-bbd5-b47371187dbb",
+      "name": "Video Creator"
+    },
+    {
+      "parameters": {
+        "url": "=https://queue.fal.run/fal-ai/kling-video/requests/{{ $json.request_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Key 413de017-d524-4fde-a79f-c4925eaee90b:cf6405dbeec5d084913c0bd501eeddce"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={   \"prompt\": \"{{ $json.description }}\",   \"image_size\": \"portrait_16_9\" }",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        320
+      ],
+      "id": "c178e995-20c4-4dcd-a84f-7148532991f2",
+      "name": "Get Video"
+    },
+    {
+      "parameters": {
+        "content": "# Stage 4:\nGenerate Videos",
+        "height": 100,
+        "width": 180,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        320
+      ],
+      "id": "3c31fcf0-a241-4f8b-a3a4-9a140ec22fa6",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "# Stage 5:\nCreate Sounds",
+        "height": 100,
+        "width": 180,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        560
+      ],
+      "id": "3ebb888b-252f-4654-9cd2-94c5a35ccb18",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Craft a vivid, immersive soundscape description for Eleven Labs based on the following multi-source context. The output should feel cinematic, environmental, and tightly aligned with the visual narrative.\n\nInputs:\n\nEnvironment: {{ $('Prompt Generator').item.json.message.content.Environment }}\n\nPhoto Detail: {{ $('Get Images').item.json.prompt }}\n\nVideo Moment: {{ $('Prompt Generator').item.json.message.content.Environment }}\n\nGoal:\nGenerate one concise but high-impact audio description for use in a short video scene. Avoid music cues. Focus on physical textures, ambient tones, environmental dynamics, and natural elements. Make it feel real."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        -500,
+        560
+      ],
+      "id": "395e5ba7-c089-4794-aea7-00eec2f6310f",
+      "name": "Sound Prompt Generator",
+      "credentials": {
+        "openAiApi": {
+          "id": "HDfmiZDKbWWGL2XM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        100,
+        560
+      ],
+      "id": "807e4938-09f5-43bc-8d68-1f8c2c260a48",
+      "name": "Wait2",
+      "webhookId": "270bd2b7-4a10-4500-9044-33fb96c710fa"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/mmaudio-v2",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Key 413de017-d524-4fde-a79f-c4925eaee90b:cf6405dbeec5d084913c0bd501eeddce"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"prompt\": \"Design a moody ambient audio bed to match this underwater concept: beams of light slicing through deep blue currents, silhouettes of divers brushing barnacles off a whale’s flank. Action detail: {{ $json.message.content }}\",\n  \"duration\": 5,\n  \"video_url\": \"{{ $('Get Video').item.json.video.url }}\"\n}\n",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -120,
+        560
+      ],
+      "id": "b9ade512-ea66-45f8-96cb-d4b9edf103b5",
+      "name": "Create sound"
+    },
+    {
+      "parameters": {
+        "url": "=https://queue.fal.run/fal-ai/mmaudio-v2/requests/{{ $json.request_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Key 413de017-d524-4fde-a79f-c4925eaee90b:cf6405dbeec5d084913c0bd501eeddce"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={   \"prompt\": \"{{ $json.description }}\",   \"image_size\": \"portrait_16_9\" }",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        560
+      ],
+      "id": "f012d3cd-e725-484a-84e0-2da113b1aff3",
+      "name": "Get Sounds"
+    },
+    {
+      "parameters": {
+        "content": "# Stage 6:\nStitch Audio + Video Together",
+        "height": 100,
+        "width": 180,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        760
+      ],
+      "id": "b825dec2-77da-44ba-94af-59f3df06cca4",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    video_urls: items.map(item => item.json.video.url)\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -500,
+        780
+      ],
+      "id": "1b78b218-ecba-49b9-889d-39a4009f9706",
+      "name": "List Elements"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -140,
+        780
+      ],
+      "id": "4447f378-3c69-49be-ba54-885f5c1c7035",
+      "name": "Wait3",
+      "webhookId": "270bd2b7-4a10-4500-9044-33fb96c710fa"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://queue.fal.run/fal-ai/ffmpeg-api/compose",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Key 413de017-d524-4fde-a79f-c4925eaee90b:cf6405dbeec5d084913c0bd501eeddce"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\n  \"tracks\": [\n    {\n      \"id\": \"1\",\n      \"type\": \"video\",\n      \"keyframes\": [\n        { \"url\": \"{{ $json.video_urls[0] }}\", \"timestamp\": 0, \"duration\": 5 },\n        { \"url\": \"{{ $json.video_urls[1] }}\", \"timestamp\": 5, \"duration\": 5 },\n        { \"url\": \"{{ $json.video_urls[2] }}\", \"timestamp\": 10, \"duration\": 5 },\n        { \"url\": \"{{ $json.video_urls[3] }}\", \"timestamp\": 15, \"duration\": 5 },\n        { \"url\": \"{{ $json.video_urls[4] }}\", \"timestamp\": 20, \"duration\": 5 },\n        { \"url\": \"{{ $json.video_urls[5] }}\", \"timestamp\": 25, \"duration\": 5 },\n        { \"url\": \"{{ $json.video_urls[6] }}\", \"timestamp\": 30, \"duration\": 5 },\n        { \"url\": \"{{ $json.video_urls[7] }}\", \"timestamp\": 35, \"duration\": 5 },\n        { \"url\": \"{{ $json.video_urls[8] }}\", \"timestamp\": 40, \"duration\": 5 },\n        { \"url\": \"{{ $json.video_urls[9] }}\", \"timestamp\": 45, \"duration\": 5 },\n        { \"url\": \"{{ $json.video_urls[10] }}\", \"timestamp\": 50, \"duration\": 5 },\n        { \"url\": \"{{ $json.video_urls[11] }}\", \"timestamp\": 55, \"duration\": 5 },\n        { \"url\": \"{{ $json.video_urls[12] }}\", \"timestamp\": 60, \"duration\": 5 }\n      ]\n    }\n  ]\n}\n",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -320,
+        780
+      ],
+      "id": "b2020993-92b1-4537-9634-63b08fff5f6d",
+      "name": "Stitch Video"
+    },
+    {
+      "parameters": {
+        "url": "=https://queue.fal.run/fal-ai/ffmpeg-api/requests/{{ $json.request_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Key 413de017-d524-4fde-a79f-c4925eaee90b:cf6405dbeec5d084913c0bd501eeddce"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        80,
+        780
+      ],
+      "id": "5ac722fa-b8df-4f6f-bd87-10b451a370bb",
+      "name": "Get Final Video"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1jutZAeLGQwSYGoWf6Cxefseu5sT17LO0y-abu3XuHkU",
+          "mode": "list",
+          "cachedResultName": "N8N Video Sheet Template",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jutZAeLGQwSYGoWf6Cxefseu5sT17LO0y-abu3XuHkU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jutZAeLGQwSYGoWf6Cxefseu5sT17LO0y-abu3XuHkU/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "IDEA": "={{ $('Idea to Sheets').first().json.IDEA }}",
+            "PRODUCTION": "Done",
+            "Final Output": "={{ $json.video_url }}"
+          },
+          "matchingColumns": [
+            "IDEA"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "IDEA",
+              "displayName": "IDEA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "CAPTION",
+              "displayName": "CAPTION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PRODUCTION",
+              "displayName": "PRODUCTION",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Environment",
+              "displayName": "Environment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Final Output",
+              "displayName": "Final Output",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        300,
+        780
+      ],
+      "id": "4c6bed71-0bf2-4c90-a4ed-fd4164af614c",
+      "name": "URL to Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6F5KjMHe0V0sZC8i",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Schedule Trigger": [
+      {
+        "json": {
+          "timestamp": "2025-05-15T07:30:01.428+07:00",
+          "Readable date": "May 15th 2025, 7:30:01 am",
+          "Readable time": "7:30:01 am",
+          "Day of week": "Thursday",
+          "Year": "2025",
+          "Month": "May",
+          "Day of month": "15",
+          "Hour": "07",
+          "Minute": "30",
+          "Second": "01",
+          "Timezone": "Asia/Bangkok (UTC+07:00)"
+        }
+      }
+    ],
+    "Idea Generator": [
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": {
+              "Title": "Monkey Steals Tourist’s GoPro and Films Jungle Life! 🐒📸 #junglemischief #animalsdoitbetter #monkeycam #gonewild #lol #funnyanimals #viralvideo #adventuretime #junglelife #explorepage",
+              "Idea": "A curious monkey grabs a tourist’s GoPro and runs off, accidentally recording a hilarious and surprisingly cinematic journey through the jungle from its point of view.",
+              "Environment": "Deep rainforest canopy, golden hour light filtering through the leaves, humid air, filled with birdsong and distant animal calls. The mood is playful and chaotic.",
+              "Status": "for production"
+            },
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      }
+    ],
+    "Idea to Sheets": [
+      {
+        "json": {
+          "IDEA": "A curious monkey grabs a tourist’s GoPro and runs off, accidentally recording a hilarious and surprisingly cinematic journey through the jungle from its point of view.",
+          "CAPTION": "Monkey Steals Tourist’s GoPro and Films Jungle Life! 🐒📸 #junglemischief #animalsdoitbetter #monkeycam #gonewild #lol #funnyanimals #viralvideo #adventuretime #junglelife #explorepage",
+          "Environment": "Deep rainforest canopy, golden hour light filtering through the leaves, humid air, filled with birdsong and distant animal calls. The mood is playful and chaotic.",
+          "PRODUCTION": "for production",
+          "ID": "=ROW()-1"
+        }
+      }
+    ],
+    "Prompt Generator": [
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": {
+              "Idea": "A curious monkey grabs a tourist’s GoPro and runs off, accidentally recording a hilarious and surprisingly cinematic journey through the jungle from its point of view.",
+              "Environment": "Deep rainforest canopy, golden hour light filtering through the leaves, humid air, filled with birdsong and distant animal calls. The mood is playful and chaotic.",
+              "Scene 1": "A brown-furred monkey clutches a black GoPro in its tiny hands, crouched on a mossy rock, golden light staining the fine hair around its ears.",
+              "Scene 2": "Mid-frame foliage parts as the monkey barrels forward, wide-eyed and alert, lit by a sharp shaft of sun that cuts through the canopy above.",
+              "Scene 3": "A sudden halt—five inches from the lens, a red-eyed tree frog clings to a glistening vine, its belly wet from the humid air.",
+              "Scene 4": "The monkey dangles upside down from a twisted branch, sky behind glowing orange, the GoPro tightly wedged under its arm.",
+              "Scene 5": "A panoramic stretch of tangled jungle opens ahead, vines crisscrossing like lines, one monkey foot blurred midair above a mud-caked root.",
+              "Scene 6": "A group of startled macaws erupts from a tree just above, their wings frozen at full span, backlit by low amber sun rays.",
+              "Scene 7": "The ground gives way to a slick slope—close-up of the monkey’s hand clawing at wet leaves, GoPro half-covered in smudged dirt.",
+              "Scene 8": "An aged tree trunk fills the frame, gnarled bark spiraling, the monkey barely peeking from behind, both eyes reflecting warm light.",
+              "Scene 9": "A narrow log bridge stretches over a slow-moving creek, monkey mid-step, tail curved awkwardly in the crowded composition.",
+              "Scene 10": "A butterfly lands on the GoPro lens, its wings fully open, blocking the view of the jungle behind in sharp symmetrical silhouette.",
+              "Scene 11": "The monkey pauses inside a hollowed-out tree, framing its curious face in darkness, fine mist particles catching the warm glow outside.",
+              "Scene 12": "From the GoPro's angle, a monitor lizard inches by across damp undergrowth, tongue out, the monkey’s paw visible in the lower corner.",
+              "Scene 13": "Golden mist rolls low across mossy stones as the monkey perches on a branch overhead, staring out with the camera dangling from its neck."
+            },
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      }
+    ],
+    "Format Prompts": [
+      {
+        "json": {
+          "description": "A brown-furred monkey clutches a black GoPro in its tiny hands, crouched on a mossy rock, golden light staining the fine hair around its ears."
+        }
+      },
+      {
+        "json": {
+          "description": "Mid-frame foliage parts as the monkey barrels forward, wide-eyed and alert, lit by a sharp shaft of sun that cuts through the canopy above."
+        }
+      },
+      {
+        "json": {
+          "description": "A sudden halt—five inches from the lens, a red-eyed tree frog clings to a glistening vine, its belly wet from the humid air."
+        }
+      },
+      {
+        "json": {
+          "description": "The monkey dangles upside down from a twisted branch, sky behind glowing orange, the GoPro tightly wedged under its arm."
+        }
+      },
+      {
+        "json": {
+          "description": "A panoramic stretch of tangled jungle opens ahead, vines crisscrossing like lines, one monkey foot blurred midair above a mud-caked root."
+        }
+      },
+      {
+        "json": {
+          "description": "A group of startled macaws erupts from a tree just above, their wings frozen at full span, backlit by low amber sun rays."
+        }
+      },
+      {
+        "json": {
+          "description": "The ground gives way to a slick slope—close-up of the monkey’s hand clawing at wet leaves, GoPro half-covered in smudged dirt."
+        }
+      },
+      {
+        "json": {
+          "description": "An aged tree trunk fills the frame, gnarled bark spiraling, the monkey barely peeking from behind, both eyes reflecting warm light."
+        }
+      },
+      {
+        "json": {
+          "description": "A narrow log bridge stretches over a slow-moving creek, monkey mid-step, tail curved awkwardly in the crowded composition."
+        }
+      },
+      {
+        "json": {
+          "description": "A butterfly lands on the GoPro lens, its wings fully open, blocking the view of the jungle behind in sharp symmetrical silhouette."
+        }
+      },
+      {
+        "json": {
+          "description": "The monkey pauses inside a hollowed-out tree, framing its curious face in darkness, fine mist particles catching the warm glow outside."
+        }
+      },
+      {
+        "json": {
+          "description": "From the GoPro's angle, a monitor lizard inches by across damp undergrowth, tongue out, the monkey’s paw visible in the lower corner."
+        }
+      },
+      {
+        "json": {
+          "description": "Golden mist rolls low across mossy stones as the monkey perches on a branch overhead, staring out with the camera dangling from its neck."
+        }
+      }
+    ],
+    "HTTP Request": [
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "e240dd04-5302-428b-bcef-026e9067caec",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/e240dd04-5302-428b-bcef-026e9067caec",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/e240dd04-5302-428b-bcef-026e9067caec/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/e240dd04-5302-428b-bcef-026e9067caec/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 1
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "af19b1da-66aa-43b3-a9e2-3f5430edde14",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/af19b1da-66aa-43b3-a9e2-3f5430edde14",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/af19b1da-66aa-43b3-a9e2-3f5430edde14/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/af19b1da-66aa-43b3-a9e2-3f5430edde14/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "3096dd51-94ed-487e-b6ac-c995cc3a67fc",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/3096dd51-94ed-487e-b6ac-c995cc3a67fc",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/3096dd51-94ed-487e-b6ac-c995cc3a67fc/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/3096dd51-94ed-487e-b6ac-c995cc3a67fc/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 2
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "a8c1b2ab-51fe-444e-bec9-b82790ff0a9d",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/a8c1b2ab-51fe-444e-bec9-b82790ff0a9d",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/a8c1b2ab-51fe-444e-bec9-b82790ff0a9d/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/a8c1b2ab-51fe-444e-bec9-b82790ff0a9d/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "7cbd15f8-82bb-4427-bb34-874567b0f59f",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/7cbd15f8-82bb-4427-bb34-874567b0f59f",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/7cbd15f8-82bb-4427-bb34-874567b0f59f/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/7cbd15f8-82bb-4427-bb34-874567b0f59f/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 5
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "bdd582e0-402f-48b8-bca2-a4807ca0ab15",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/bdd582e0-402f-48b8-bca2-a4807ca0ab15",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/bdd582e0-402f-48b8-bca2-a4807ca0ab15/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/bdd582e0-402f-48b8-bca2-a4807ca0ab15/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "89f6a0e0-ab15-4511-9c7f-bfd5e6fe5937",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/89f6a0e0-ab15-4511-9c7f-bfd5e6fe5937",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/89f6a0e0-ab15-4511-9c7f-bfd5e6fe5937/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/89f6a0e0-ab15-4511-9c7f-bfd5e6fe5937/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "92fe1a38-13cf-41e9-8df9-bae05cd7e0d0",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/92fe1a38-13cf-41e9-8df9-bae05cd7e0d0",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/92fe1a38-13cf-41e9-8df9-bae05cd7e0d0/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/92fe1a38-13cf-41e9-8df9-bae05cd7e0d0/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "a424f010-e507-4523-bdca-83e579c72577",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/a424f010-e507-4523-bdca-83e579c72577",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/a424f010-e507-4523-bdca-83e579c72577/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/a424f010-e507-4523-bdca-83e579c72577/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 3
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "1d17cd17-12ab-4952-9f92-e7cb03ad3bfb",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/1d17cd17-12ab-4952-9f92-e7cb03ad3bfb",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/1d17cd17-12ab-4952-9f92-e7cb03ad3bfb/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/1d17cd17-12ab-4952-9f92-e7cb03ad3bfb/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "9c18dfe6-0841-423d-99fe-5b218dacc961",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/9c18dfe6-0841-423d-99fe-5b218dacc961",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/9c18dfe6-0841-423d-99fe-5b218dacc961/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/9c18dfe6-0841-423d-99fe-5b218dacc961/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "1592fe00-3ef3-47e3-a793-16e20928b34c",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/1592fe00-3ef3-47e3-a793-16e20928b34c",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/1592fe00-3ef3-47e3-a793-16e20928b34c/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/1592fe00-3ef3-47e3-a793-16e20928b34c/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 1
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "9f6185c3-22de-4608-9275-18eee78f9113",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/9f6185c3-22de-4608-9275-18eee78f9113",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/9f6185c3-22de-4608-9275-18eee78f9113/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/9f6185c3-22de-4608-9275-18eee78f9113/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      }
+    ],
+    "Wait": [
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "e240dd04-5302-428b-bcef-026e9067caec",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/e240dd04-5302-428b-bcef-026e9067caec",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/e240dd04-5302-428b-bcef-026e9067caec/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/e240dd04-5302-428b-bcef-026e9067caec/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 1
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "af19b1da-66aa-43b3-a9e2-3f5430edde14",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/af19b1da-66aa-43b3-a9e2-3f5430edde14",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/af19b1da-66aa-43b3-a9e2-3f5430edde14/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/af19b1da-66aa-43b3-a9e2-3f5430edde14/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "3096dd51-94ed-487e-b6ac-c995cc3a67fc",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/3096dd51-94ed-487e-b6ac-c995cc3a67fc",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/3096dd51-94ed-487e-b6ac-c995cc3a67fc/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/3096dd51-94ed-487e-b6ac-c995cc3a67fc/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 2
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "a8c1b2ab-51fe-444e-bec9-b82790ff0a9d",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/a8c1b2ab-51fe-444e-bec9-b82790ff0a9d",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/a8c1b2ab-51fe-444e-bec9-b82790ff0a9d/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/a8c1b2ab-51fe-444e-bec9-b82790ff0a9d/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "7cbd15f8-82bb-4427-bb34-874567b0f59f",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/7cbd15f8-82bb-4427-bb34-874567b0f59f",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/7cbd15f8-82bb-4427-bb34-874567b0f59f/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/7cbd15f8-82bb-4427-bb34-874567b0f59f/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 5
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "bdd582e0-402f-48b8-bca2-a4807ca0ab15",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/bdd582e0-402f-48b8-bca2-a4807ca0ab15",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/bdd582e0-402f-48b8-bca2-a4807ca0ab15/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/bdd582e0-402f-48b8-bca2-a4807ca0ab15/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "89f6a0e0-ab15-4511-9c7f-bfd5e6fe5937",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/89f6a0e0-ab15-4511-9c7f-bfd5e6fe5937",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/89f6a0e0-ab15-4511-9c7f-bfd5e6fe5937/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/89f6a0e0-ab15-4511-9c7f-bfd5e6fe5937/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "92fe1a38-13cf-41e9-8df9-bae05cd7e0d0",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/92fe1a38-13cf-41e9-8df9-bae05cd7e0d0",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/92fe1a38-13cf-41e9-8df9-bae05cd7e0d0/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/92fe1a38-13cf-41e9-8df9-bae05cd7e0d0/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "a424f010-e507-4523-bdca-83e579c72577",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/a424f010-e507-4523-bdca-83e579c72577",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/a424f010-e507-4523-bdca-83e579c72577/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/a424f010-e507-4523-bdca-83e579c72577/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 3
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "1d17cd17-12ab-4952-9f92-e7cb03ad3bfb",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/1d17cd17-12ab-4952-9f92-e7cb03ad3bfb",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/1d17cd17-12ab-4952-9f92-e7cb03ad3bfb/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/1d17cd17-12ab-4952-9f92-e7cb03ad3bfb/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "9c18dfe6-0841-423d-99fe-5b218dacc961",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/9c18dfe6-0841-423d-99fe-5b218dacc961",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/9c18dfe6-0841-423d-99fe-5b218dacc961/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/9c18dfe6-0841-423d-99fe-5b218dacc961/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "1592fe00-3ef3-47e3-a793-16e20928b34c",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/1592fe00-3ef3-47e3-a793-16e20928b34c",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/1592fe00-3ef3-47e3-a793-16e20928b34c/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/1592fe00-3ef3-47e3-a793-16e20928b34c/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 1
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "9f6185c3-22de-4608-9275-18eee78f9113",
+          "response_url": "https://queue.fal.run/fal-ai/flux/requests/9f6185c3-22de-4608-9275-18eee78f9113",
+          "status_url": "https://queue.fal.run/fal-ai/flux/requests/9f6185c3-22de-4608-9275-18eee78f9113/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/flux/requests/9f6185c3-22de-4608-9275-18eee78f9113/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      }
+    ],
+    "Get Images": [
+      {
+        "json": {
+          "images": [
+            {
+              "url": "https://v3.fal.media/files/kangaroo/XlToaQ9c60lCJNNhtLnyV.png",
+              "width": 576,
+              "height": 1024,
+              "content_type": "image/jpeg"
+            }
+          ],
+          "timings": {
+            "inference": 0.2784381730016321
+          },
+          "seed": 88930973,
+          "has_nsfw_concepts": [
+            false
+          ],
+          "prompt": "A brown-furred monkey clutches a black GoPro in its tiny hands, crouched on a mossy rock, golden light staining the fine hair around its ears."
+        }
+      },
+      {
+        "json": {
+          "images": [
+            {
+              "url": "https://v3.fal.media/files/kangaroo/RGFqIMmy3g4jY4lSwCIA5.png",
+              "width": 576,
+              "height": 1024,
+              "content_type": "image/jpeg"
+            }
+          ],
+          "timings": {
+            "inference": 0.27381881000474095
+          },
+          "seed": 1980353509,
+          "has_nsfw_concepts": [
+            false
+          ],
+          "prompt": "Mid-frame foliage parts as the monkey barrels forward, wide-eyed and alert, lit by a sharp shaft of sun that cuts through the canopy above."
+        }
+      },
+      {
+        "json": {
+          "images": [
+            {
+              "url": "https://v3.fal.media/files/zebra/nKk-WLnuNrXXJrfatmP3O.png",
+              "width": 576,
+              "height": 1024,
+              "content_type": "image/jpeg"
+            }
+          ],
+          "timings": {
+            "inference": 0.2804695009253919
+          },
+          "seed": 125238240,
+          "has_nsfw_concepts": [
+            false
+          ],
+          "prompt": "A sudden halt—five inches from the lens, a red-eyed tree frog clings to a glistening vine, its belly wet from the humid air."
+        }
+      },
+      {
+        "json": {
+          "images": [
+            {
+              "url": "https://v3.fal.media/files/zebra/UWrALJOHrfOxDiC8vkhgY.png",
+              "width": 576,
+              "height": 1024,
+              "content_type": "image/jpeg"
+            }
+          ],
+          "timings": {
+            "inference": 0.2798158498480916
+          },
+          "seed": 1295504217,
+          "has_nsfw_concepts": [
+            false
+          ],
+          "prompt": "The monkey dangles upside down from a twisted branch, sky behind glowing orange, the GoPro tightly wedged under its arm."
+        }
+      },
+      {
+        "json": {
+          "images": [
+            {
+              "url": "https://v3.fal.media/files/tiger/7u2a7pKPnpxeo0-PHZp9k.png",
+              "width": 576,
+              "height": 1024,
+              "content_type": "image/jpeg"
+            }
+          ],
+          "timings": {
+            "inference": 0.28039163863286376
+          },
+          "seed": 3179460760,
+          "has_nsfw_concepts": [
+            false
+          ],
+          "prompt": "A panoramic stretch of tangled jungle opens ahead, vines crisscrossing like lines, one monkey foot blurred midair above a mud-caked root."
+        }
+      },
+      {
+        "json": {
+          "images": [
+            {
+              "url": "https://v3.fal.media/files/koala/wHIPIUZTzGtT2uIC5DPz5.png",
+              "width": 576,
+              "height": 1024,
+              "content_type": "image/jpeg"
+            }
+          ],
+          "timings": {
+            "inference": 0.2738417102955282
+          },
+          "seed": 606591210,
+          "has_nsfw_concepts": [
+            false
+          ],
+          "prompt": "A group of startled macaws erupts from a tree just above, their wings frozen at full span, backlit by low amber sun rays."
+        }
+      },
+      {
+        "json": {
+          "images": [
+            {
+              "url": "https://v3.fal.media/files/zebra/Mlm4G1OK1HLT2dnzuIU8Z.png",
+              "width": 576,
+              "height": 1024,
+              "content_type": "image/jpeg"
+            }
+          ],
+          "timings": {
+            "inference": 0.27598448900243966
+          },
+          "seed": 2058541938,
+          "has_nsfw_concepts": [
+            false
+          ],
+          "prompt": "The ground gives way to a slick slope—close-up of the monkey’s hand clawing at wet leaves, GoPro half-covered in smudged dirt."
+        }
+      },
+      {
+        "json": {
+          "images": [
+            {
+              "url": "https://v3.fal.media/files/rabbit/vsl9RONS7V1HqR-xkPquS.png",
+              "width": 576,
+              "height": 1024,
+              "content_type": "image/jpeg"
+            }
+          ],
+          "timings": {
+            "inference": 0.27510525519028306
+          },
+          "seed": 2711434574,
+          "has_nsfw_concepts": [
+            false
+          ],
+          "prompt": "An aged tree trunk fills the frame, gnarled bark spiraling, the monkey barely peeking from behind, both eyes reflecting warm light."
+        }
+      },
+      {
+        "json": {
+          "images": [
+            {
+              "url": "https://v3.fal.media/files/panda/Ef7z1BnMwM7f7esr_q7bG.png",
+              "width": 576,
+              "height": 1024,
+              "content_type": "image/jpeg"
+            }
+          ],
+          "timings": {
+            "inference": 0.2766642430015054
+          },
+          "seed": 3506874285,
+          "has_nsfw_concepts": [
+            false
+          ],
+          "prompt": "A narrow log bridge stretches over a slow-moving creek, monkey mid-step, tail curved awkwardly in the crowded composition."
+        }
+      },
+      {
+        "json": {
+          "images": [
+            {
+              "url": "https://v3.fal.media/files/lion/Yumu3xAi6pH0jbawNTp48.png",
+              "width": 576,
+              "height": 1024,
+              "content_type": "image/jpeg"
+            }
+          ],
+          "timings": {
+            "inference": 0.27902744011953473
+          },
+          "seed": 3621376783,
+          "has_nsfw_concepts": [
+            false
+          ],
+          "prompt": "A butterfly lands on the GoPro lens, its wings fully open, blocking the view of the jungle behind in sharp symmetrical silhouette."
+        }
+      },
+      {
+        "json": {
+          "images": [
+            {
+              "url": "https://v3.fal.media/files/zebra/ge-aWdnQqDO-nIV47crIE.png",
+              "width": 576,
+              "height": 1024,
+              "content_type": "image/jpeg"
+            }
+          ],
+          "timings": {
+            "inference": 0.2819220907986164
+          },
+          "seed": 2600510051,
+          "has_nsfw_concepts": [
+            false
+          ],
+          "prompt": "The monkey pauses inside a hollowed-out tree, framing its curious face in darkness, fine mist particles catching the warm glow outside."
+        }
+      },
+      {
+        "json": {
+          "images": [
+            {
+              "url": "https://v3.fal.media/files/monkey/4EUXt5QnptHfUt3hosysz.png",
+              "width": 576,
+              "height": 1024,
+              "content_type": "image/jpeg"
+            }
+          ],
+          "timings": {
+            "inference": 0.27671494200330926
+          },
+          "seed": 1160700547,
+          "has_nsfw_concepts": [
+            false
+          ],
+          "prompt": "From the GoPro's angle, a monitor lizard inches by across damp undergrowth, tongue out, the monkey’s paw visible in the lower corner."
+        }
+      },
+      {
+        "json": {
+          "images": [
+            {
+              "url": "https://v3.fal.media/files/zebra/fljE-h7UCS9v-8a462lFs.png",
+              "width": 576,
+              "height": 1024,
+              "content_type": "image/jpeg"
+            }
+          ],
+          "timings": {
+            "inference": 0.28070181189104915
+          },
+          "seed": 3967908558,
+          "has_nsfw_concepts": [
+            false
+          ],
+          "prompt": "Golden mist rolls low across mossy stones as the monkey perches on a branch overhead, staring out with the camera dangling from its neck."
+        }
+      }
+    ],
+    "Create Video Prompts": [
+      {
+        "json": {
+          "content": "A young monkey grips a black GoPro with both hands, crouched low on a lichen-covered rock as soft sunlight brushes the tips of its orange fur."
+        }
+      },
+      {
+        "json": {
+          "content": "Sunlight flares through the dense canopy as the young monkey crouches low among thick leaves, eyes locked ahead in rigid focus."
+        }
+      },
+      {
+        "json": {
+          "content": "Clinging to a rain-slick stalk, the red-eyed tree frog presses its orange toes into the bark, surrounded by broad, dew-speckled leaves."
+        }
+      },
+      {
+        "json": {
+          "content": "The monkey hangs by one arm from a crooked branch, fur ruffled by a warm breeze, a GoPro snug against its chest as the orange sky glows behind it."
+        }
+      },
+      {
+        "json": {
+          "content": "Thick vines twist upward from a jagged bundle of bark, steam curling in the haze as damp leaves hang heavy in the stillness above."
+        }
+      },
+      {
+        "json": {
+          "content": "Six vivid macaws hold their wings wide atop broken branches, still against the orange glow flooding through thick morning mist above dense green foliage."
+        }
+      },
+      {
+        "json": {
+          "content": "A muddy hand presses into wet gravel near overgrown leaves as mist clings to the narrow forest trail."
+        }
+      },
+      {
+        "json": {
+          "content": "Sunlight spills over twisted bark as a young monkey holds still inside the deep groove, wide eyes catching the glow."
+        }
+      },
+      {
+        "json": {
+          "content": "A young monkey pauses on a mossy log above murky creek water, one foot lifted, surrounded by fallen leaves and smooth gray rocks scattered along the forest floor."
+        }
+      },
+      {
+        "json": {
+          "content": "A butterfly hovers still above a human hand, wings spread wide against a dense wall of green leaves and tall jungle trees."
+        }
+      },
+      {
+        "json": {
+          "content": "The young monkey leans against rough bark, its wide eyes fixed outward as golden light spills through fine mist around the hollow."
+        }
+      },
+      {
+        "json": {
+          "content": "A monitor lizard crawls over wet roots and slick mud, its tongue stretched forward, as a monkey’s paw rests still in the lower corner among broad green leaves."
+        }
+      },
+      {
+        "json": {
+          "content": "Golden mist settles over moss-covered stones as the monkey hangs from a branch, one arm extended, with a small camera resting against its chest."
+        }
+      }
+    ],
+    "Video Creator": [
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "303c68a1-5005-4e27-93fc-0e8207a0cb52",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/303c68a1-5005-4e27-93fc-0e8207a0cb52",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/303c68a1-5005-4e27-93fc-0e8207a0cb52/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/303c68a1-5005-4e27-93fc-0e8207a0cb52/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "7dfdac88-4b9a-4fb4-9f20-4315a06312c8",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/7dfdac88-4b9a-4fb4-9f20-4315a06312c8",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/7dfdac88-4b9a-4fb4-9f20-4315a06312c8/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/7dfdac88-4b9a-4fb4-9f20-4315a06312c8/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 1
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "2c266b27-1046-45d5-a668-c00ceca672f8",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/2c266b27-1046-45d5-a668-c00ceca672f8",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/2c266b27-1046-45d5-a668-c00ceca672f8/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/2c266b27-1046-45d5-a668-c00ceca672f8/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "c3d1e7a1-6e94-453e-bf65-8a3a6c898197",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/c3d1e7a1-6e94-453e-bf65-8a3a6c898197",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/c3d1e7a1-6e94-453e-bf65-8a3a6c898197/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/c3d1e7a1-6e94-453e-bf65-8a3a6c898197/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "3e4ac574-8a40-4cec-915c-219d9dc95fb6",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/3e4ac574-8a40-4cec-915c-219d9dc95fb6",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/3e4ac574-8a40-4cec-915c-219d9dc95fb6/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/3e4ac574-8a40-4cec-915c-219d9dc95fb6/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "14067d65-a17a-4d09-b1ed-5858c2a927fe",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/14067d65-a17a-4d09-b1ed-5858c2a927fe",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/14067d65-a17a-4d09-b1ed-5858c2a927fe/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/14067d65-a17a-4d09-b1ed-5858c2a927fe/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "3cf945df-ae99-4a34-a22f-a2043af82ca3",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/3cf945df-ae99-4a34-a22f-a2043af82ca3",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/3cf945df-ae99-4a34-a22f-a2043af82ca3/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/3cf945df-ae99-4a34-a22f-a2043af82ca3/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "d7a68e98-1472-4a1f-9a73-f1f24196102d",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/d7a68e98-1472-4a1f-9a73-f1f24196102d",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/d7a68e98-1472-4a1f-9a73-f1f24196102d/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/d7a68e98-1472-4a1f-9a73-f1f24196102d/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "f71cac8f-4331-4dde-8378-84ac5209aae5",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/f71cac8f-4331-4dde-8378-84ac5209aae5",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/f71cac8f-4331-4dde-8378-84ac5209aae5/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/f71cac8f-4331-4dde-8378-84ac5209aae5/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "42df4847-e122-4cf0-a345-f6f3d551294e",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/42df4847-e122-4cf0-a345-f6f3d551294e",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/42df4847-e122-4cf0-a345-f6f3d551294e/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/42df4847-e122-4cf0-a345-f6f3d551294e/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "64a34ad9-055f-4fe5-ab28-77e213cea58b",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/64a34ad9-055f-4fe5-ab28-77e213cea58b",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/64a34ad9-055f-4fe5-ab28-77e213cea58b/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/64a34ad9-055f-4fe5-ab28-77e213cea58b/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "5a37ad43-d480-4d5a-9a5e-8345029f0146",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/5a37ad43-d480-4d5a-9a5e-8345029f0146",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/5a37ad43-d480-4d5a-9a5e-8345029f0146/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/5a37ad43-d480-4d5a-9a5e-8345029f0146/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "0e01e34c-295c-4934-98ed-4390a29237ed",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/0e01e34c-295c-4934-98ed-4390a29237ed",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/0e01e34c-295c-4934-98ed-4390a29237ed/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/0e01e34c-295c-4934-98ed-4390a29237ed/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      }
+    ],
+    "Wait1": [
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "303c68a1-5005-4e27-93fc-0e8207a0cb52",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/303c68a1-5005-4e27-93fc-0e8207a0cb52",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/303c68a1-5005-4e27-93fc-0e8207a0cb52/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/303c68a1-5005-4e27-93fc-0e8207a0cb52/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "7dfdac88-4b9a-4fb4-9f20-4315a06312c8",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/7dfdac88-4b9a-4fb4-9f20-4315a06312c8",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/7dfdac88-4b9a-4fb4-9f20-4315a06312c8/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/7dfdac88-4b9a-4fb4-9f20-4315a06312c8/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 1
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "2c266b27-1046-45d5-a668-c00ceca672f8",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/2c266b27-1046-45d5-a668-c00ceca672f8",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/2c266b27-1046-45d5-a668-c00ceca672f8/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/2c266b27-1046-45d5-a668-c00ceca672f8/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "c3d1e7a1-6e94-453e-bf65-8a3a6c898197",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/c3d1e7a1-6e94-453e-bf65-8a3a6c898197",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/c3d1e7a1-6e94-453e-bf65-8a3a6c898197/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/c3d1e7a1-6e94-453e-bf65-8a3a6c898197/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "3e4ac574-8a40-4cec-915c-219d9dc95fb6",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/3e4ac574-8a40-4cec-915c-219d9dc95fb6",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/3e4ac574-8a40-4cec-915c-219d9dc95fb6/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/3e4ac574-8a40-4cec-915c-219d9dc95fb6/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "14067d65-a17a-4d09-b1ed-5858c2a927fe",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/14067d65-a17a-4d09-b1ed-5858c2a927fe",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/14067d65-a17a-4d09-b1ed-5858c2a927fe/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/14067d65-a17a-4d09-b1ed-5858c2a927fe/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "3cf945df-ae99-4a34-a22f-a2043af82ca3",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/3cf945df-ae99-4a34-a22f-a2043af82ca3",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/3cf945df-ae99-4a34-a22f-a2043af82ca3/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/3cf945df-ae99-4a34-a22f-a2043af82ca3/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "d7a68e98-1472-4a1f-9a73-f1f24196102d",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/d7a68e98-1472-4a1f-9a73-f1f24196102d",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/d7a68e98-1472-4a1f-9a73-f1f24196102d/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/d7a68e98-1472-4a1f-9a73-f1f24196102d/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "f71cac8f-4331-4dde-8378-84ac5209aae5",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/f71cac8f-4331-4dde-8378-84ac5209aae5",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/f71cac8f-4331-4dde-8378-84ac5209aae5/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/f71cac8f-4331-4dde-8378-84ac5209aae5/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "42df4847-e122-4cf0-a345-f6f3d551294e",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/42df4847-e122-4cf0-a345-f6f3d551294e",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/42df4847-e122-4cf0-a345-f6f3d551294e/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/42df4847-e122-4cf0-a345-f6f3d551294e/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "64a34ad9-055f-4fe5-ab28-77e213cea58b",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/64a34ad9-055f-4fe5-ab28-77e213cea58b",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/64a34ad9-055f-4fe5-ab28-77e213cea58b/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/64a34ad9-055f-4fe5-ab28-77e213cea58b/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "5a37ad43-d480-4d5a-9a5e-8345029f0146",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/5a37ad43-d480-4d5a-9a5e-8345029f0146",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/5a37ad43-d480-4d5a-9a5e-8345029f0146/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/5a37ad43-d480-4d5a-9a5e-8345029f0146/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "0e01e34c-295c-4934-98ed-4390a29237ed",
+          "response_url": "https://queue.fal.run/fal-ai/kling-video/requests/0e01e34c-295c-4934-98ed-4390a29237ed",
+          "status_url": "https://queue.fal.run/fal-ai/kling-video/requests/0e01e34c-295c-4934-98ed-4390a29237ed/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/kling-video/requests/0e01e34c-295c-4934-98ed-4390a29237ed/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      }
+    ],
+    "Get Video": [
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/kangaroo/aSkCbVLatQIEhm1IsBo0A_output.mp4",
+            "content_type": "video/mp4",
+            "file_name": "output.mp4",
+            "file_size": 7642297
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/koala/Ye8z2GAhIfoVg7M8rUrbu_output.mp4",
+            "content_type": "video/mp4",
+            "file_name": "output.mp4",
+            "file_size": 3304252
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/rabbit/1wdbMbsLKgIVtU1uPzkNw_output.mp4",
+            "content_type": "video/mp4",
+            "file_name": "output.mp4",
+            "file_size": 4143120
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/panda/r7j90IqQ_i9Zc7HVFhRf0_output.mp4",
+            "content_type": "video/mp4",
+            "file_name": "output.mp4",
+            "file_size": 4237045
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/panda/Yr5UvPeP4QEnrb93YPmYa_output.mp4",
+            "content_type": "video/mp4",
+            "file_name": "output.mp4",
+            "file_size": 5301186
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/lion/jqZ0PPNyudrQIvuCSdD_0_output.mp4",
+            "content_type": "video/mp4",
+            "file_name": "output.mp4",
+            "file_size": 6361190
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/elephant/uYIJXTsUcYpcndp6QQm7M_output.mp4",
+            "content_type": "video/mp4",
+            "file_name": "output.mp4",
+            "file_size": 4920378
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/rabbit/_VomNX0NYXgAdkbZG-Oku_output.mp4",
+            "content_type": "video/mp4",
+            "file_name": "output.mp4",
+            "file_size": 11747276
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/zebra/Opbz2l_DWOLBsPZ83ei6W_output.mp4",
+            "content_type": "video/mp4",
+            "file_name": "output.mp4",
+            "file_size": 8789570
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/panda/WjKq_Je3ZVtg0wb6umpJf_output.mp4",
+            "content_type": "video/mp4",
+            "file_name": "output.mp4",
+            "file_size": 4493996
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/lion/wzuZ2-oRvo4XJ8Dza_-xi_output.mp4",
+            "content_type": "video/mp4",
+            "file_name": "output.mp4",
+            "file_size": 2698962
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/tiger/RAYFtuB9hl8r8Wyr0zvOq_output.mp4",
+            "content_type": "video/mp4",
+            "file_name": "output.mp4",
+            "file_size": 9883165
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/elephant/ik5SePdrA6vyqIYlnNnaP_output.mp4",
+            "content_type": "video/mp4",
+            "file_name": "output.mp4",
+            "file_size": 3811192
+          }
+        }
+      }
+    ],
+    "Sound Prompt Generator": [
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "A lively symphony of rainforest life unfurls—leaves whisper overhead as a humid breeze stirs the treetops, golden light spilling in dappled patterns across wet moss. Footsteps patter on slick stone; the faint brush of tiny fingers explores the hard shell of a GoPro. Nearby, high-pitched birdcalls and a chorus of monkeys echo between trunks, punctuated by distant screeches and flapping wings. Underneath, insects trill, and every sound is softened by the thick, moist air—turning chaos into a vibrant, living tapestry.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "A chorus of birds flutters through humid air, their bright calls bouncing between layers of dense foliage. High in the canopy, thick leaves rustle frantically as a monkey bursts forward, sending droplets sliding off glossy greenery. Sunbeams slice through the shadows, catching the animal’s quick, frantic breaths and the damp patter of its hands against moss and bark. In the distance, unseen creatures echo with curious yelps and trills, threading chaos and wonder through the golden, tangled heart of the rainforest.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "A rush of humid air hums with life—leaves tremble overhead, scattering golden light in shifting mosaics. Layered birdsong spirals through the dense canopy, punctuated by the distant whoop of a howler monkey and the sharp chirr of insects. A sudden thud of movement: just inches away, damp fingertips on glossy vine, the red-eyed tree frog’s breath rasps audibly, skin glistening, every tiny movement echoing in the sticky air. The forest shifts—a riot of calls and rustling leaves, playful chaos enveloping the moment.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "A rush of humid air bristles with layered birdsong—chirps, trills, whistles weaving through the thick rainforest canopy. Leaves brush and shiver as a monkey swings, limbs rustling against twisted branches, the GoPro clutched beneath its arm. Above, golden sunlight sifts through dense foliage, dappling the scene in shifting warmth. Distant animal calls echo—a shriek, a chitter, a sudden splash—blending into a playful, ever-shifting chorus as the monkey’s exuberant movement sends droplets and fragments tumbling to the spongy earth below.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Sound floods the rainforest: a dense tapestry of fluttering wings, chirping insects, and overlapping birdsong echo beneath the tangled green canopy. Gentle golden light sifts through moist leaves; humidity thickens every breath. Vines creak and foliage rustles as monkeys chatter and leap—one foot slaps a mud-caked root with a wet thud, sending startled frogs into splashy retreat. Distant whoops and animal calls flicker across the panorama, chaos and play shimmering within the living, breathing wild.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "A humid hush hangs in the twilight rainforest, thick with the mingled chorus of trilling birds and chattering insects. Suddenly, a wild rustle erupts overhead—the sharp, rhythmic wingbeats of startled macaws slicing through leafy branches. Feathers whoosh and snap as they burst into open air, their calls echoing in jubilant, overlapping bursts. Sunbeams split through the canopy, catching in swaying leaves and the fleeting flurry of vibrant wings, while distant animal calls ripple beneath the chaotic, jubilant crescendo.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "A wild chorus of birds flutters overhead while golden sunlight flickers through dripping leaves. The humid air hums with insect wings and echoing animal calls—close in, you hear the squelch of wet earth, the frantic scrabble of tiny fingernails raking slick leaves, and the muffled crunch of mud caking the lens. Every motion kicks up a chorus of rustling foliage and splashing water, as the rainforest comes alive in chaotic, exuberant detail.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "A symphony of rainforest chaos stirs—humid air thick with energy. Sunbeams flicker through dense, layered leaves, dappled patterns shifting across gnarled bark. Birdsong flutters in bursts; distant howls and chattering monkeys weave a playful, unpredictable rhythm. Amidst the thrum, the rough, spiraling trunk scrapes softly as a monkey peers out, breath gently ruffling the silence—both caught in golden light as the lush canopy shivers above, alive with movement and promise.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Sun-warmed air buzzes with layered rainforest chatter—sharp calls, wild laughter, wings fluttering through dense leaves. Humid stillness is punctuated by sudden snaps of twigs, the rush of small feet scrabbling across bark. Somewhere overhead, larger animals stir, setting loose a gentle rain of dew. Below, water gurgles softly beneath the narrow log bridge as a monkey’s paws patter, tail swishing and leaves brushing in brief, chaotic bursts. The jungle pulses with energy, dappled sunlight weaving patterns through the living soundscape.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "A chorus of rainforest birds riffles through the dense, humid air, their calls darting between distant howls and nearby trills. Leaves drip softly from recent rain, mingling with the chaotic patter of tiny creatures scuttling through the undergrowth. The golden light breaks into fragments above, dappling the sounds with shifting warmth. Suddenly, the flutter of delicate wings overtakes the soundscape—a butterfly lands close; its feathery limbs and papery wings press to the lens, muting the canopy’s roar into a gentle hush, as every detail of the insect’s presence eclipses the wild, layered symphony behind it.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "Beneath the towering rainforest canopy, golden-hour sunlight slants through dense leaves, setting mist particles alight in the humid air. Layers of birdsong ripple all around—trills, caws, and chatter, punctuated by the distant yelp of unseen creatures. The air vibrates with playful energy: leaves rustle and branches thump as animals scurry overhead. Inside a hollowed tree, everything muffles—the outer world a tapestry of muffled calls and fluttering wings, the gentle hiss of humidity blurring the line between shadow and gold-lit chaos outside.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "A humid tangle of rainforest rises around you, alive with layered birdsong—warbling, chattering, shrill—and distant, echoing animal calls cutting through thick air. Shafts of golden light flicker as leaves rustle overhead, dappling the damp earth. Close by, the slow, deliberate scritch of a monitor lizard’s scales on leaf litter mingles with the muffled snap of twigs. A wet nose snuffles somewhere just out of sight; now and then, a monkey's abrupt chitter sparks a burst of fluttering wings, all tension and play in the chaos of the deep canopy.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      },
+      {
+        "json": {
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "content": "A dense rainforest hum saturates the air—layers of vibrant birdsong dart between the trees, their calls ricocheting through the tangled green. Golden sunlight pierces the canopy in shifting shafts, illuminating a low, swirling mist that clings to moss-covered stones. The flutter of wings and the distant chatter of monkeys blend with the sharp snap of twigs underpaw. Overhead, a monkey rustles branches, its quiet breath and the gentle tap of a swinging camera lens punctuating the playful chaos. Every moment is alive: the drip of warm humidity from leaves, the soft patter of falling dew, and the ever-present, restless chorus of life breathing beneath the jungle’s golden veil.",
+            "refusal": null,
+            "annotations": []
+          },
+          "logprobs": null,
+          "finish_reason": "stop"
+        }
+      }
+    ],
+    "Create sound": [
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "c1e47c63-a428-44ba-bc15-469a1ac78498",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/c1e47c63-a428-44ba-bc15-469a1ac78498",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/c1e47c63-a428-44ba-bc15-469a1ac78498/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/c1e47c63-a428-44ba-bc15-469a1ac78498/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "7c6f5ab8-5b2b-4e00-a493-f95dcb21c976",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/7c6f5ab8-5b2b-4e00-a493-f95dcb21c976",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/7c6f5ab8-5b2b-4e00-a493-f95dcb21c976/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/7c6f5ab8-5b2b-4e00-a493-f95dcb21c976/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "ba32764a-53f5-4807-9c94-c5b94bd3db5d",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/ba32764a-53f5-4807-9c94-c5b94bd3db5d",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/ba32764a-53f5-4807-9c94-c5b94bd3db5d/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/ba32764a-53f5-4807-9c94-c5b94bd3db5d/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "e18ced5c-47d2-4fdb-b22e-8d0fd79ea92a",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/e18ced5c-47d2-4fdb-b22e-8d0fd79ea92a",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/e18ced5c-47d2-4fdb-b22e-8d0fd79ea92a/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/e18ced5c-47d2-4fdb-b22e-8d0fd79ea92a/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "526268a8-9184-4c4c-b225-387dac21e826",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/526268a8-9184-4c4c-b225-387dac21e826",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/526268a8-9184-4c4c-b225-387dac21e826/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/526268a8-9184-4c4c-b225-387dac21e826/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "d4959262-6746-470c-ac64-85e9384aabe9",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/d4959262-6746-470c-ac64-85e9384aabe9",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/d4959262-6746-470c-ac64-85e9384aabe9/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/d4959262-6746-470c-ac64-85e9384aabe9/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "202fc52b-5aa2-4a95-b397-6745f28dcc0c",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/202fc52b-5aa2-4a95-b397-6745f28dcc0c",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/202fc52b-5aa2-4a95-b397-6745f28dcc0c/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/202fc52b-5aa2-4a95-b397-6745f28dcc0c/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "ae99a1ea-30ff-4862-b71f-d0e769a3e118",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/ae99a1ea-30ff-4862-b71f-d0e769a3e118",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/ae99a1ea-30ff-4862-b71f-d0e769a3e118/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/ae99a1ea-30ff-4862-b71f-d0e769a3e118/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "1f6610c7-6fee-4193-bb87-c4cf61595f8f",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/1f6610c7-6fee-4193-bb87-c4cf61595f8f",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/1f6610c7-6fee-4193-bb87-c4cf61595f8f/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/1f6610c7-6fee-4193-bb87-c4cf61595f8f/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "4370a398-5967-4263-85ae-825ce7b72d8a",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/4370a398-5967-4263-85ae-825ce7b72d8a",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/4370a398-5967-4263-85ae-825ce7b72d8a/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/4370a398-5967-4263-85ae-825ce7b72d8a/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "9e12263d-33cd-42ed-baae-c6b8b5615798",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/9e12263d-33cd-42ed-baae-c6b8b5615798",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/9e12263d-33cd-42ed-baae-c6b8b5615798/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/9e12263d-33cd-42ed-baae-c6b8b5615798/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "4ebbbc3d-d88b-4808-a54b-668101e23a92",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/4ebbbc3d-d88b-4808-a54b-668101e23a92",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/4ebbbc3d-d88b-4808-a54b-668101e23a92/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/4ebbbc3d-d88b-4808-a54b-668101e23a92/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "6bbaa290-0cf7-4735-be04-b77321440f76",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/6bbaa290-0cf7-4735-be04-b77321440f76",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/6bbaa290-0cf7-4735-be04-b77321440f76/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/6bbaa290-0cf7-4735-be04-b77321440f76/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      }
+    ],
+    "Wait2": [
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "c1e47c63-a428-44ba-bc15-469a1ac78498",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/c1e47c63-a428-44ba-bc15-469a1ac78498",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/c1e47c63-a428-44ba-bc15-469a1ac78498/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/c1e47c63-a428-44ba-bc15-469a1ac78498/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "7c6f5ab8-5b2b-4e00-a493-f95dcb21c976",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/7c6f5ab8-5b2b-4e00-a493-f95dcb21c976",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/7c6f5ab8-5b2b-4e00-a493-f95dcb21c976/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/7c6f5ab8-5b2b-4e00-a493-f95dcb21c976/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "ba32764a-53f5-4807-9c94-c5b94bd3db5d",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/ba32764a-53f5-4807-9c94-c5b94bd3db5d",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/ba32764a-53f5-4807-9c94-c5b94bd3db5d/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/ba32764a-53f5-4807-9c94-c5b94bd3db5d/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "e18ced5c-47d2-4fdb-b22e-8d0fd79ea92a",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/e18ced5c-47d2-4fdb-b22e-8d0fd79ea92a",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/e18ced5c-47d2-4fdb-b22e-8d0fd79ea92a/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/e18ced5c-47d2-4fdb-b22e-8d0fd79ea92a/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "526268a8-9184-4c4c-b225-387dac21e826",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/526268a8-9184-4c4c-b225-387dac21e826",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/526268a8-9184-4c4c-b225-387dac21e826/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/526268a8-9184-4c4c-b225-387dac21e826/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "d4959262-6746-470c-ac64-85e9384aabe9",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/d4959262-6746-470c-ac64-85e9384aabe9",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/d4959262-6746-470c-ac64-85e9384aabe9/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/d4959262-6746-470c-ac64-85e9384aabe9/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "202fc52b-5aa2-4a95-b397-6745f28dcc0c",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/202fc52b-5aa2-4a95-b397-6745f28dcc0c",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/202fc52b-5aa2-4a95-b397-6745f28dcc0c/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/202fc52b-5aa2-4a95-b397-6745f28dcc0c/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "ae99a1ea-30ff-4862-b71f-d0e769a3e118",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/ae99a1ea-30ff-4862-b71f-d0e769a3e118",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/ae99a1ea-30ff-4862-b71f-d0e769a3e118/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/ae99a1ea-30ff-4862-b71f-d0e769a3e118/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "1f6610c7-6fee-4193-bb87-c4cf61595f8f",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/1f6610c7-6fee-4193-bb87-c4cf61595f8f",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/1f6610c7-6fee-4193-bb87-c4cf61595f8f/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/1f6610c7-6fee-4193-bb87-c4cf61595f8f/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "4370a398-5967-4263-85ae-825ce7b72d8a",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/4370a398-5967-4263-85ae-825ce7b72d8a",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/4370a398-5967-4263-85ae-825ce7b72d8a/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/4370a398-5967-4263-85ae-825ce7b72d8a/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "9e12263d-33cd-42ed-baae-c6b8b5615798",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/9e12263d-33cd-42ed-baae-c6b8b5615798",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/9e12263d-33cd-42ed-baae-c6b8b5615798/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/9e12263d-33cd-42ed-baae-c6b8b5615798/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "4ebbbc3d-d88b-4808-a54b-668101e23a92",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/4ebbbc3d-d88b-4808-a54b-668101e23a92",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/4ebbbc3d-d88b-4808-a54b-668101e23a92/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/4ebbbc3d-d88b-4808-a54b-668101e23a92/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      },
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "6bbaa290-0cf7-4735-be04-b77321440f76",
+          "response_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/6bbaa290-0cf7-4735-be04-b77321440f76",
+          "status_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/6bbaa290-0cf7-4735-be04-b77321440f76/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/mmaudio-v2/requests/6bbaa290-0cf7-4735-be04-b77321440f76/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      }
+    ],
+    "List Elements": [
+      {
+        "json": {
+          "video_urls": [
+            "https://v3.fal.media/files/monkey/dfudjZZt4AbyB195KwHfN_aSkCbVLatQIEhm1IsBo0A_output.mp4",
+            "https://v3.fal.media/files/tiger/GrbckLUQB0WIErojcd8F1_Ye8z2GAhIfoVg7M8rUrbu_output.mp4",
+            "https://v3.fal.media/files/panda/tLZE6TjHjIqgX5e3AfmrX_1wdbMbsLKgIVtU1uPzkNw_output.mp4",
+            "https://v3.fal.media/files/elephant/hWv6viVDhciAeLpab4J0W_r7j90IqQ_i9Zc7HVFhRf0_output.mp4",
+            "https://v3.fal.media/files/monkey/Qsjwzzmc0VvR5I09-MtAg_Yr5UvPeP4QEnrb93YPmYa_output.mp4",
+            "https://v3.fal.media/files/zebra/pNKhOltr0OJDwaUFFI_sn_jqZ0PPNyudrQIvuCSdD_0_output.mp4",
+            "https://v3.fal.media/files/panda/_lSU1qwrZfCUuLqrrAvkB_uYIJXTsUcYpcndp6QQm7M_output.mp4",
+            "https://v3.fal.media/files/lion/Rvr3RXPBtAY-34pLSJNky__VomNX0NYXgAdkbZG-Oku_output.mp4",
+            "https://v3.fal.media/files/penguin/SgIgjX6KoB84rqPIYfIpp_Opbz2l_DWOLBsPZ83ei6W_output.mp4",
+            "https://v3.fal.media/files/zebra/tgFPXuqeJZDiK9tgURmdc_WjKq_Je3ZVtg0wb6umpJf_output.mp4",
+            "https://v3.fal.media/files/lion/Tfmk4Udpw1zri7x_hXOfH_wzuZ2-oRvo4XJ8Dza_-xi_output.mp4",
+            "https://v3.fal.media/files/penguin/kiDya-4pBeWrIfQliS7xi_RAYFtuB9hl8r8Wyr0zvOq_output.mp4",
+            "https://v3.fal.media/files/kangaroo/A8AlotGPAutS85CfcVn1c_ik5SePdrA6vyqIYlnNnaP_output.mp4"
+          ]
+        }
+      }
+    ],
+    "Stitch Video": [
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "1d7905e4-a555-4ce9-b47e-b944fc29ce60",
+          "response_url": "https://queue.fal.run/fal-ai/ffmpeg-api/requests/1d7905e4-a555-4ce9-b47e-b944fc29ce60",
+          "status_url": "https://queue.fal.run/fal-ai/ffmpeg-api/requests/1d7905e4-a555-4ce9-b47e-b944fc29ce60/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/ffmpeg-api/requests/1d7905e4-a555-4ce9-b47e-b944fc29ce60/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      }
+    ],
+    "Wait3": [
+      {
+        "json": {
+          "status": "IN_QUEUE",
+          "request_id": "1d7905e4-a555-4ce9-b47e-b944fc29ce60",
+          "response_url": "https://queue.fal.run/fal-ai/ffmpeg-api/requests/1d7905e4-a555-4ce9-b47e-b944fc29ce60",
+          "status_url": "https://queue.fal.run/fal-ai/ffmpeg-api/requests/1d7905e4-a555-4ce9-b47e-b944fc29ce60/status",
+          "cancel_url": "https://queue.fal.run/fal-ai/ffmpeg-api/requests/1d7905e4-a555-4ce9-b47e-b944fc29ce60/cancel",
+          "logs": null,
+          "metrics": {},
+          "queue_position": 0
+        }
+      }
+    ],
+    "Get Sounds": [
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/monkey/dfudjZZt4AbyB195KwHfN_aSkCbVLatQIEhm1IsBo0A_output.mp4",
+            "content_type": "application/octet-stream",
+            "file_name": "aSkCbVLatQIEhm1IsBo0A_output.mp4",
+            "file_size": 1239764
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/tiger/GrbckLUQB0WIErojcd8F1_Ye8z2GAhIfoVg7M8rUrbu_output.mp4",
+            "content_type": "application/octet-stream",
+            "file_name": "Ye8z2GAhIfoVg7M8rUrbu_output.mp4",
+            "file_size": 662441
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/panda/tLZE6TjHjIqgX5e3AfmrX_1wdbMbsLKgIVtU1uPzkNw_output.mp4",
+            "content_type": "application/octet-stream",
+            "file_name": "1wdbMbsLKgIVtU1uPzkNw_output.mp4",
+            "file_size": 681843
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/elephant/hWv6viVDhciAeLpab4J0W_r7j90IqQ_i9Zc7HVFhRf0_output.mp4",
+            "content_type": "application/octet-stream",
+            "file_name": "r7j90IqQ_i9Zc7HVFhRf0_output.mp4",
+            "file_size": 745488
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/monkey/Qsjwzzmc0VvR5I09-MtAg_Yr5UvPeP4QEnrb93YPmYa_output.mp4",
+            "content_type": "application/octet-stream",
+            "file_name": "Yr5UvPeP4QEnrb93YPmYa_output.mp4",
+            "file_size": 907595
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/zebra/pNKhOltr0OJDwaUFFI_sn_jqZ0PPNyudrQIvuCSdD_0_output.mp4",
+            "content_type": "application/octet-stream",
+            "file_name": "jqZ0PPNyudrQIvuCSdD_0_output.mp4",
+            "file_size": 1126582
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/panda/_lSU1qwrZfCUuLqrrAvkB_uYIJXTsUcYpcndp6QQm7M_output.mp4",
+            "content_type": "application/octet-stream",
+            "file_name": "uYIJXTsUcYpcndp6QQm7M_output.mp4",
+            "file_size": 869129
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/lion/Rvr3RXPBtAY-34pLSJNky__VomNX0NYXgAdkbZG-Oku_output.mp4",
+            "content_type": "application/octet-stream",
+            "file_name": "_VomNX0NYXgAdkbZG-Oku_output.mp4",
+            "file_size": 1380883
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/penguin/SgIgjX6KoB84rqPIYfIpp_Opbz2l_DWOLBsPZ83ei6W_output.mp4",
+            "content_type": "application/octet-stream",
+            "file_name": "Opbz2l_DWOLBsPZ83ei6W_output.mp4",
+            "file_size": 1229775
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/zebra/tgFPXuqeJZDiK9tgURmdc_WjKq_Je3ZVtg0wb6umpJf_output.mp4",
+            "content_type": "application/octet-stream",
+            "file_name": "WjKq_Je3ZVtg0wb6umpJf_output.mp4",
+            "file_size": 858642
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/lion/Tfmk4Udpw1zri7x_hXOfH_wzuZ2-oRvo4XJ8Dza_-xi_output.mp4",
+            "content_type": "application/octet-stream",
+            "file_name": "wzuZ2-oRvo4XJ8Dza_-xi_output.mp4",
+            "file_size": 467175
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/penguin/kiDya-4pBeWrIfQliS7xi_RAYFtuB9hl8r8Wyr0zvOq_output.mp4",
+            "content_type": "application/octet-stream",
+            "file_name": "RAYFtuB9hl8r8Wyr0zvOq_output.mp4",
+            "file_size": 1399456
+          }
+        }
+      },
+      {
+        "json": {
+          "video": {
+            "url": "https://v3.fal.media/files/kangaroo/A8AlotGPAutS85CfcVn1c_ik5SePdrA6vyqIYlnNnaP_output.mp4",
+            "content_type": "application/octet-stream",
+            "file_name": "ik5SePdrA6vyqIYlnNnaP_output.mp4",
+            "file_size": 753772
+          }
+        }
+      }
+    ],
+    "URL to Google Sheets": [
+      {
+        "json": {
+          "IDEA": "A curious monkey grabs a tourist’s GoPro and runs off, accidentally recording a hilarious and surprisingly cinematic journey through the jungle from its point of view.",
+          "PRODUCTION": "Done",
+          "Final Output": "https://v3.fal.media/files/tiger/XKJkQXerCxXkCIxahaMKw_output.mp4"
+        }
+      }
+    ],
+    "Get Final Video": [
+      {
+        "json": {
+          "video_url": "https://v3.fal.media/files/tiger/XKJkQXerCxXkCIxahaMKw_output.mp4",
+          "thumbnail_url": "https://v3.fal.media/files/panda/ayVuP4Y5NfaxU4KSkHZGw_first_frame.jpg"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Idea Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Idea Generator": {
+      "main": [
+        [
+          {
+            "node": "Idea to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Idea to Sheets": {
+      "main": [
+        [
+          {
+            "node": "Prompt Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt Generator": {
+      "main": [
+        [
+          {
+            "node": "Format Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Prompts": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Get Images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Images": {
+      "main": [
+        [
+          {
+            "node": "Create Video Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Video Prompts": {
+      "main": [
+        [
+          {
+            "node": "Video Creator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Get Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Video Creator": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Video": {
+      "main": [
+        [
+          {
+            "node": "Sound Prompt Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sound Prompt Generator": {
+      "main": [
+        [
+          {
+            "node": "Create sound",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "Get Sounds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create sound": {
+      "main": [
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Sounds": {
+      "main": [
+        [
+          {
+            "node": "List Elements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Elements": {
+      "main": [
+        [
+          {
+            "node": "Stitch Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait3": {
+      "main": [
+        [
+          {
+            "node": "Get Final Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stitch Video": {
+      "main": [
+        [
+          {
+            "node": "Wait3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Final Video": {
+      "main": [
+        [
+          {
+            "node": "URL to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "50d5e5c3-530f-4cc3-bdc2-2767edbd14a1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5e299a1c9534d3df40876524706c82a0adb5dc6203538ef644e25b7d869a117f"
+  },
+  "id": "qsvS5v6U6JULvYZw",
+  "tags": []
+}

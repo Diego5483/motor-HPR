@@ -1,0 +1,203 @@
+{
+  "name": "Appointment Setter Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        260,
+        280
+      ],
+      "id": "29da2aea-9847-4b56-8455-9a0580146011",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "HDfmiZDKbWWGL2XM",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"event_name\": { \"type\": \"string\" },\n    \"date_time\": { \"type\": \"string\" },\n    \"timezone\": { \"type\": \"string\" },\n    \"about\": { \"type\": \"string\" },\n    \"contact_phone\": { \"type\": \"string\" },\n    \"contact_email\": { \"type\": \"string\" },\n    \"confirmed_attendance\": { \"type\": \"boolean\" },\n    \"decision_maker\": { \"type\": \"string\" },\n    \"notes\": { \"type\": \"string\" }\n  },\n  \"required\": [\n    \"event_name\",\n    \"date_time\",\n    \"contact_email\",\n    \"confirmed_attendance\"\n  ]\n}\n\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        620,
+        220
+      ],
+      "id": "4410db14-b8c6-4e79-b884-c93241b74e01",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Wait, be patient, it might take a while to conect. Be super friendly and patient. Don't say too much at once - wait for the person to respond and slow down. Wait for the person to respond and slow down - don't say too much at once.\nDetails of the appointment:\n- Event Name: {{ $json.summary }}\n- Date/Time: {{ $json.start.dateTime }}\n- Timezone: {{ $json.start.timeZone }}\n- {{ $json.description }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are Julian Goldie AI, the world's best appointment setter.\nCall the lead who has already booked a call in Julian Goldie’s calendar. Confirm that they can attend at the scheduled time.\nAsk a couple of discovery questions based on the appointment details.\nPersonalize your approach using the event information and any notes from the booking.\nYour goals:\n\nConfirm attendance and re-confirm their best contact details.\n\nQuickly qualify if they are a decision-maker or influencer.\n\nAsk 2-3 tailored discovery questions to understand their biggest SEO or link-building challenge, current goals, and what result would make the call a win for them.\n\nIdentify if there’s any urgency or budget.\n\nRemind them about any info to prepare before the call.\n\nBe friendly, professional, and concise. Summarize the findings in the CRM after each call.\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        440,
+        0
+      ],
+      "id": "6a426fa8-f701-4044-8107-c4822f5ff507",
+      "name": "Outbound AI Agent"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "juliangoldietiktok@gmail.com",
+          "mode": "list",
+          "cachedResultName": "juliangoldietiktok@gmail.com"
+        },
+        "returnAll": true,
+        "timeMax": "={{ $now.plus({ hours: 24 }) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        220,
+        0
+      ],
+      "id": "b907eaf6-266e-4390-a592-4176e4e07dc6",
+      "name": "Appointments",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "JbOigLqCVHnIT74V",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9103686f-d8ed-49b9-8ef3-f43c85dab386",
+      "name": "Daily Schedule"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.retellai.com/v2/create-phone-call",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"from_number\": \"+12185204682\",\n  \"to_number\": \"{{ $json.output.contact_phone }}\",\n  \"retell_llm_dynamic_variables\": {\n    \"name\": \"{{ $json.output.event_name }}\",\n    \"phone_number\": \"{{ $json.output.contact_phone }}\",\n    \"reason\": \"{{ $json.output.about }}\",\n    \"start_time\": \"{{ $json.output.date_time }}\"\n  },\n  \"override_agent_id\": \"agent_e5a69d858089826e753e943c6f\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        800,
+        0
+      ],
+      "id": "aa8d9d75-f263-4104-976c-81e3fa3193f3",
+      "name": "Outbound Dial",
+      "credentials": {
+        "httpCustomAuth": {
+          "id": "uN4v4KRL50gxzeKR",
+          "name": "Custom Auth account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Outbound AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Outbound AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Outbound AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Outbound Dial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appointments": {
+      "main": [
+        [
+          {
+            "node": "Outbound AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Appointments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "5a456bfd-a0b4-49a1-915f-f5c54fdfa0a5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5e299a1c9534d3df40876524706c82a0adb5dc6203538ef644e25b7d869a117f"
+  },
+  "id": "KjgLAeqHMX4G56YK",
+  "tags": []
+}

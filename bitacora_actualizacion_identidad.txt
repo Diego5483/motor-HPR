@@ -1,0 +1,86 @@
+Bitácora Técnica: Actualización de Identidad Visual - Motor HPR
+================================================================
+
+Fecha: 2026-10-03
+Agente: OpenCode (Actualización de Identidad Visual)
+
+1. Reemplazo de Recursos Gráficos
+---------------------------------
+- Archivo anterior: HPR/src/desktop/assets/hpr_logo.png (placeholder azul)
+- Archivo anterior: HPR/src/desktop/assets/hpr.ico (placeholder azul)
+- Archivo fuente real: HPR/imajenes y diagramas/file_0000000094e4820ea6febb4fd8e99179.png (escudo PNG 1254×1254 px, RGBA)
+- Acciones realizadas:
+  * hpr_logo.png → Copia del escudo PNG oficial en la ruta de activos (tamaño conservado 1254×1254 px, modo RGBA)
+  * hpr.ico → Generado como ICO multiparamétrico con los tres tamaños requeridos:
+    - 16×16 píxeles (icono de ventana pequeño)
+    - 32×32 píxeles (icono de tarea)
+    - 256×256 píxeles (icono de presentación)
+  * Los nombres de archivo se mantuvieron invariantes (hpr_logo.png, hpr.ico), garantizando compatibilidad total con todas las referencias existentes.
+
+2. Validación de Integridad
+----------------------------
+- RUTA_LOGO = _ruta_recurso("hpr_logo.png") → Resuelve a HPR/src/desktop/assets/hpr_logo.png ✔
+- RUTA_ICONO = _ruta_recurso("hpr.ico") → Resuelve a HPR/src/desktop/assets/hpr.ico ✔
+- Referencia en src/desktop/app.py líneas 33 y 36 sin modificaciones; el método _ruta_recurso usa _DIRECTORIO_RECURSOS / nombre, por lo que las rutas son absolutamente correctas.
+- En _construir_encabezado (línea 69-76), se verifica `if RUTA_LOGO.exists():` antes de cargar la imagen con PIL.Image.open; al existir el nuevo PNG escudo, el logotipo se mostrará en la cabecera sin degradación.
+- El ICO generado contiene los tres tamaños esperados por la prueba unitaria: {(16, 16), (32, 32), (256, 256)}.
+- No hay rutas quebradas ni estilos alterados; la sustitución fue binaria y conservó el modo RGBA.
+
+3. Integración en la Interfaz
+------------------------------
+- La cabecera de la aplicación (encabezado) mostrará el nuevo escudo oficial HPR a la izquierda, junto al texto "Motor HPR".
+- El icono de la ventana nativa se actualizará al ejecutar la aplicación con el nuevo ICO multiparamétrico (16×16, 32×32, 256×256).
+- No se requieren cambios en CSS, archivos de plantilla ni código de layout; solo la sustitución binaria de los activos en el directorio assets.
+- El escudo mantiene su proporción y nitidez en todos los tamaños soportados.
+
+4. Incorporación de GestorTareasAgente (Subsistema Agéntico)
+------------------------------------------------------------
+- Fecha: 2026-10-04
+- Ubicación: HPR/src/core/agent_task_manager.py
+- Clase principal: GestorTareasAgente
+- Responsabilidades:
+  * Cola de tareas autónomas en segundo plano (cola_tareas)
+  * Historial de ejecución completado (historial_ejecucion)
+  * Procesamiento determinista de cada tarea por el ciclo de vida:
+    * PENDING → RUNNING → validación via ValidadorNivelesConfianza → COMPLETED/DISCARDED
+  * Integración obligatoria del ValidadorNivelesConfianza en el ciclo de procesamiento:
+    - Resultado Nivel 1 (Alta Confianza / Verificado) → integrarse directamente en el flujo de salida.
+    - Resultado Nivel 2 (Confianza Media / Validación Requerida) → integrarse con validación cruzada interna.
+    - Resultado Nivel 3 (Baja Confianza) o información insuficiente → MARCAR COMO DESCARTADO aplicando regla estricta de cero alucinaciones: prohibido inventar datos, solicitar aclaración al usuario.
+  * API pública: agregar_tarea(), procesar_siguiente(), ver_historial(), ver_estado_cola(), reiniciar().
+- Dependencias: validador_niveles_confianza (inyectado en __init__).
+- Casos de uso soportados: consultas web en segundo plano, procesamiento de datos determinista, tareas de enriquecimiento de conocimiento HPR con auditoría de confianza.
+
+5. Validación de Niveles de Confianza (ValidadorNivelesConfianza)
+---------------------------------------------------------------
+- Clase: ValidadorNivelesConfianza
+- Método: clasificar_fuente(origen, contenido, es_oficial)
+- Nivel 1: es_oficial=True O "ceo_knowledge_base" en origen → "Alta Confianza (Verificado)"
+- Nivel 2: contenido con ≥ 40 caracteres, no oficial → "Confianza Media (Validación Requerida)"
+- Nivel 3: contenido vacío o < 40 caracteres → "Baja Confianza (Precaución)" / Descartado
+
+6. Actualización del Agente HPR con Política de Cero Alucinaciones
+-----------------------------------------------------------------
+- Archivo: HPR/src/desktop/agent.py
+- Integración: El agente ahora usa GestorTareasAgente para manejar consultas web externas.
+- Flujo estricto:
+  1. Búsqueda en bóveda interna HPR → si hay pasaje → Nivel 1 directo.
+  2. Si no hay pasaje interno → búsqueda web OBLIGATORIA.
+  3. TODO resultado web pasa por ValidadorNivelesConfianza.
+  4. Aplicación de regla de cero alucinaciones:
+     - Nivel 1 / Nivel 2 → usar información, etiquetada como externa validada.
+     - Nivel 3 / None → PROHIBIDO inventar datos. Informar transparentemente al usuario solicitando aclaración o re-consulta.
+- Flujo de ejemplo descrito en el reporte anterior.
+
+7. Reporte de Ejecución
+-------------------------
+Este documento constituye la bitácora técnica oficial que confirma:
+- Integración exitosa del nuevo diseño de logo utilizando el escudo oficial del proyecto HPR.
+- Rutas de recursos válidas y sin broken links (todas las referencias apuntan a los nuevos activos).
+- Visualización correcta prevista en la cabecera y el icono de la ventana del ecosistema.
+- No se reportaron errores de integridad, estilos ni compatibilidad.
+- Las pruebas de resolución de rutas (_ruta_recurso) y formato de imagen (PNG/RGBA y ICO multiparámetro) son consistentes con la constitución del proyecto.
+- Incorporado subsistema GestorTareasAgente con validación de niveles de confianza integrada.
+- Política de cero alucinaciones aplicada en el agente HPR: sin generación de información inventada.
+
+Firma del agente: OpenCode — Actualización de Identidad Visual HPR
