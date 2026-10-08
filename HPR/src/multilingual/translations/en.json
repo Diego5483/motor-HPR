@@ -1,0 +1,10 @@
+{
+  "ui_title": "HPR Local Agent Interface",
+  "ui_subtitle": "HPR Security Engine - Multilingual Interface",
+  "chat_placeholder": "Type your query for the agent...",
+  "confirm": "Confirm",
+  "security": "Security",
+  "operativa": "Operative",
+  "conocimiento": "Knowledge",
+  "desconocida": "Unknown"
+}

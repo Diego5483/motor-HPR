@@ -363,4 +363,12 @@ class HPRSecurityEngine:
 
         if not sovereign_gate_validation(str(query)):
             return MENSAJE_BLOQUEO_SOVEREIGN_GATE
+
+        # Pipeline completado exitosamente: retorno de estado determinista
+        return {
+            "estado": "Pipeline verificado",
+            "requiere_externa": False,
+            "nivel_confianza": "medio",
+            "justificación": "Consulta procesada sin bloqueos de seguridad"
+        }
         
