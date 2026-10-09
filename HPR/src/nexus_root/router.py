@@ -100,6 +100,8 @@ _DOMINIOS_CONFIABLES = {
     "microsoft.com", "docs.microsoft.com",
     "aws.amazon.com", "azure.microsoft.com",
     "cloud.google.com",
+    # ARM y arquitectura
+    "arm.com", "developer.arm.com",
     # Académicos
     "arxiv.org", "doi.org", "scholar.google.com",
     "pubmed.ncbi.nlm.nih.gov", "ieee.org",
