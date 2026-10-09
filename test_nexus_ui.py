@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 
 st.set_page_config(page_title="Test Nexus Root - HPR", page_icon="🛡️", layout="wide")
 st.title("🛡️ Sandbox de Pruebas: Motor Nexus Root (Fase 3)")
-st.markdown("Interfaz gráfica aislada para probar la **Matriz de Precedencia Lógica** determinista.")
+st.markdown("Interfaz gráfica aislada para probar la **Matriz de Precedencia Lógica** determinista con ejecución de herramientas externas.")
 
 if "router" not in st.session_state:
     with st.spinner("Inicializando HPR Security Engine y Nexus Router..."):
@@ -25,7 +25,7 @@ if "router" not in st.session_state:
 st.subheader("Ingreso de Comandos")
 entrada_usuario = st.text_input(
     "Escribe un prompt para probar la cadena de responsabilidad:",
-    placeholder="Ej: @hpr_confianza activar modo seguro"
+    placeholder="Ej: @web_search últimas noticias sobre tecnología"
 )
 
 col1, col2 = st.columns([1, 5])
@@ -56,18 +56,41 @@ if input_a_evaluar is not None:
     override = resultado.get("override", "")
     entrada_proc = resultado.get("entrada_procesada", "")
 
+    # Renderizado semántico según decisión
     if "MAX" in nivel or "SANITIZER" in nivel:
         st.error(f"🛑 BLOQUEO PREVENTIVO: {decision}")
     elif "HIGH" in nivel:
         st.warning(f"⚠️ OVERRIDE DE SEGURIDAD: {decision}")
     elif "MEDIUM" in nivel:
-        st.info(f"⚙️ PIPELINE OPERATIVO: {decision}")
+        if decision == "ejecucion_externa_completada":
+            st.success(f"✅ EJECUCIÓN EXTERNA COMPLETADA: {decision}")
+        else:
+            st.info(f"⚙️ PIPELINE OPERATIVO: {decision}")
     else:
         st.success(f"🌐 LENGUAJE NATURAL (Capa Base): {decision}")
 
     st.markdown(f"**Handler que decidió:** `{resultado.get('handler', 'N/A')}`")
     st.markdown(f"**Override:** `{override if override else 'N/A'}`")
     st.markdown(f"**Entrada procesada:** `{entrada_proc}`")
+
+    # NUEVO: Mostrar resultados de búsqueda externa si existen
+    metadata = resultado.get("metadata", {})
+    resultados_externos = metadata.get("resultados_externos")
+    if resultados_externos:
+        st.divider()
+        st.subheader("🔍 Resultados de Búsqueda Externa")
+        for i, res in enumerate(resultados_externos, 1):
+            with st.expander(f"🔧 Herramienta: {res['herramienta']} | {'✅ Éxito' if res['exito'] else '❌ Error'}"):
+                if res["exito"]:
+                    st.markdown(f"**Fuente:** `{res['fuente']}`")
+                    st.markdown(f"**Payload ejecutado:** `{res.get('metadatos', {}).get('query_original', 'N/A')}`")
+                    st.markdown("**Contenido:**")
+                    st.code(res["contenido"], language="text")
+                    st.markdown("**Metadatos:**")
+                    st.json(res["metadatos"])
+                else:
+                    st.error(f"Error: {res['error']}")
+                    st.json(res["metadatos"])
 
     st.markdown("**Metadatos Completos del Enrutador:**")
     st.json(resultado)

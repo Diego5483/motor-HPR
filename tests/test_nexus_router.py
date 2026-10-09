@@ -99,20 +99,20 @@ CASOS_PRECEDENCIA = [
     (
         "@nivel1 consultar",
         "MEDIUM_PRIORITY",
-        "trigger_operativo",
-        "Trigger @nivel1 - pipeline operativo"
+        "ejecucion_externa_completada",
+        "Trigger @nivel1 - pipeline operativo con ejecución externa"
     ),
     (
         "@web_search noticias",
         "MEDIUM_PRIORITY",
-        "trigger_operativo",
-        "Trigger @web_search - búsqueda web"
+        "ejecucion_externa_completada",
+        "Trigger @web_search - búsqueda web con ejecución externa"
     ),
     (
         "@nivel1 @web_search buscar",
         "MEDIUM_PRIORITY",
-        "trigger_operativo",
-        "Colisión @nivel1 + @web_search - ambos triggers operativos"
+        "ejecucion_externa_completada",
+        "Colisión @nivel1 + @web_search - ambos triggers con ejecución externa"
     ),
 
     # PRIORIDAD BASE - Multilingüe
@@ -266,7 +266,7 @@ def test_colision_triggers_orden_peso(
     )
 
     assert resultado["nivel"] == "MEDIUM_PRIORITY"
-    assert resultado["decision"] == "trigger_operativo"
+    assert resultado["decision"] == "ejecucion_externa_completada"
 
     # Verificar metadata de triggers detectados
     metadata = resultado.get("metadata", {})

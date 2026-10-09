@@ -260,7 +260,9 @@ class MediumPriorityHandler(BaseHandler):
                 f"{self.nombre}: triggers operativos detectados {triggers_detectados} | "
                 f"activando pipeline operativo (ordenado por peso)"
             )
-            return True, "+".join([f"@{t[0]}" for t in triggers_ordenados]), metadata
+            # CAMBIO: NO short-circuit aquí. Retornamos instrucción para que el
+            # NexusRouter ejecute las herramientas externas tras la validación determinista.
+            return False, "EJECUTAR_HERRAMIENTAS_EXTERNAS", metadata
         
         # No es trigger de prioridad media, continuar cadena
         logger.debug(f"{self.nombre}: no hay triggers operativos, continuar cadena")

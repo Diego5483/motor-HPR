@@ -4,10 +4,14 @@
 from .precedencia import NexusRootPrecedenceEngine
 from .sanitizer import InputSanitizer
 from .router import NexusRouter, crear_nexus_router
+from .executor import ExternalToolExecutor, ResultadoBusqueda, crear_executor
 
 __all__ = [
     "NexusRootPrecedenceEngine",
     "InputSanitizer",
     "NexusRouter",
     "crear_nexus_router",
+    "ExternalToolExecutor",
+    "ResultadoBusqueda",
+    "crear_executor",
 ]

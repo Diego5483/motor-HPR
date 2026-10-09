@@ -20,6 +20,7 @@ from src.nexus_root.precedencia import (
     MediumPriorityHandler,
     BasePriorityHandler,
 )
+from src.nexus_root.executor import ExternalToolExecutor, ResultadoBusqueda, crear_executor
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +35,11 @@ class NexusRouter:
     y retorna la decisión de enrutamiento final.
 
     Características arquitectónicas:
-    - Inyección de dependencias: recibe HPRSecurityEngine en constructor.
+    - Inyección de dependencias: recibe HPRSecurityEngine y ExternalToolExecutor en constructor.
     - Sin estado mutable: cada llamada es pura y determinista.
     - Orden de precedencia garantizado: MAX → HIGH → MEDIUM → BASE.
-    - Short-circuit inmediato: el primer handler que cumple su condición
-      detiene la cadena y retorna la decisión.
+    - Short-circuit controlado: handlers pueden delegar ejecución externa
+      en lugar de hacer short-circuit inmediato.
     - Logging estructurado: trazabilidad completa de cada decisión.
     - Extensibilidad: nuevos handlers se añaden al final de la cadena
       sin modificar los existentes (Open/Closed Principle).
@@ -48,6 +49,7 @@ class NexusRouter:
         self,
         motor: HPRSecurityEngine,
         sanitizer: Optional[InputSanitizer] = None,
+        executor: Optional[ExternalToolExecutor] = None,
     ):
         """
         Inicializa el Nexus Router con la cadena de responsabilidad completa.
@@ -57,9 +59,13 @@ class NexusRouter:
                    Se inyecta en todos los handlers para acceso al pipeline.
             sanitizer: Instancia opcional de InputSanitizer. Si no se
                        proporciona, se usa la clase estática por defecto.
+            executor: Instancia opcional de ExternalToolExecutor para
+                      ejecutar herramientas externas (web_search, etc.).
+                      Si no se proporciona, se crea uno por defecto.
         """
         self.motor = motor
         self.sanitizer = sanitizer or InputSanitizer()
+        self.executor = executor or crear_executor()
 
         # Construir la cadena de responsabilidad en ORDEN ESTRICTO DE PRECEDENCIA
         # Cada handler recibe la misma instancia del motor (inyección de dependencias)
@@ -72,7 +78,8 @@ class NexusRouter:
 
         logger.info(
             f"NexusRouter inicializado | handlers={len(self._cadena)} | "
-            f"orden=[{', '.join(h.nombre for h in self._cadena)}]"
+            f"orden=[{', '.join(h.nombre for h in self._cadena)}] | "
+            f"executor={'mock' if isinstance(self.executor, ExternalToolExecutor) else 'custom'}"
         )
 
     def enrutar(
@@ -97,13 +104,15 @@ class NexusRouter:
         Returns:
             Dict con la decisión final de enrutamiento:
                 {
-                    "decision": "bloqueo" | "trigger_confianza" | "trigger_operativo" | "delegacion_multilingue",
-                    "nivel": "MAX_PRIORITY" | "HIGH_PRIORITY" | "MEDIUM_PRIORITY" | "BASE_PRIORITY",
+                    "decision": "bloqueo" | "trigger_confianza" | 
+                                "ejecucion_externa_completada" | "delegacion_multilingue",
+                    "nivel": "MAX_PRIORITY" | "HIGH_PRIORITY" | 
+                             "MEDIUM_PRIORITY" | "BASE_PRIORITY",
                     "handler": "nombre_del_handler_que_decidio",
                     "override": str | None,  # Mensaje de bloqueo o identificador de trigger
                     "metadata": Dict[str, Any],  # Contexto completo de la decisión
                     "entrada_procesada": str,  # Entrada después de sanitización
-                    "state": PipelineState,    # Estado final (puede ser modificado por handlers)
+                    "state": PipelineState,    # Estado final
                 }
 
         Ejemplo de uso:
@@ -172,8 +181,34 @@ class NexusRouter:
             # Fusionar metadata del handler
             metadata_acumulado.update(metadata_handler)
 
+            # NUEVA LÓGICA: Detectar instrucción de ejecución externa
+            if override == "EJECUTAR_HERRAMIENTAS_EXTERNAS":
+                # Ejecutar herramientas externas detectadas por el handler
+                resultados_externos = self._ejecutar_herramientas_externas(
+                    metadata_handler, entrada_procesada
+                )
+                
+                metadata_acumulado["handler_decisor"] = handler.nombre
+                metadata_acumulado["short_circuit"] = True
+                metadata_acumulado["resultados_externos"] = resultados_externos
+
+                logger.info(
+                    f"NexusRouter: EJECUCIÓN EXTERNA COMPLETADA | "
+                    f"herramientas={len(resultados_externos)}"
+                )
+
+                return {
+                    "decision": "ejecucion_externa_completada",
+                    "nivel": handler.nombre,
+                    "handler": handler.nombre,
+                    "override": override,
+                    "metadata": metadata_acumulado,
+                    "entrada_procesada": entrada_procesada,
+                    "state": state,
+                }
+
             if condicion_cumplida:
-                # SHORT-CIRCUIT: este handler tomó la decisión
+                # SHORT-CIRCUIT: este handler tomó la decisión (bloqueo, trigger_confianza, delegacion_multilingue)
                 metadata_acumulado["handler_decisor"] = handler.nombre
                 metadata_acumulado["short_circuit"] = True
 
@@ -211,6 +246,55 @@ class NexusRouter:
             "entrada_procesada": entrada_procesada,
             "state": state,
         }
+
+    def _ejecutar_herramientas_externas(
+        self, 
+        metadata_handler: Dict[str, Any], 
+        entrada_original: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Ejecuta todas las herramientas externas detectadas por el handler.
+        
+        Args:
+            metadata_handler: Metadata retornada por el handler (contiene triggers)
+            entrada_original: Entrada original del usuario para fallback de payload
+            
+        Returns:
+            Lista de resultados de ejecución de herramientas externas
+        """
+        resultados = []
+        triggers = metadata_handler.get("triggers", [])
+        
+        for trigger_info in triggers:
+            herramienta = trigger_info["tipo"]  # "web_search"
+            payload = trigger_info["payload"]   # query extraída
+            
+            if not payload:
+                # Si no hay payload específico, usar entrada original
+                payload = entrada_original
+            
+            logger.info(f"NexusRouter: Ejecutando herramienta {herramienta} | payload='{payload[:50]}'")
+            
+            resultado: ResultadoBusqueda = self.executor.ejecutar(
+                herramienta=herramienta,
+                payload=payload,
+                contexto={
+                    "trigger": trigger_info["tipo"],
+                    "peso_operativo": trigger_info["peso_operativo"],
+                    "entrada_original": entrada_original
+                }
+            )
+            
+            resultados.append({
+                "herramienta": herramienta,
+                "exito": resultado.exito,
+                "contenido": resultado.contenido,
+                "fuente": resultado.fuente,
+                "metadatos": resultado.metadatos,
+                "error": resultado.error
+            })
+        
+        return resultados
 
     def _clasificar_decision(self, handler_nombre: str, override: Optional[str]) -> str:
         """
@@ -259,6 +343,7 @@ class NexusRouter:
 def crear_nexus_router(
     motor: HPRSecurityEngine,
     sanitizer: Optional[InputSanitizer] = None,
+    executor: Optional[ExternalToolExecutor] = None,
 ) -> NexusRouter:
     """
     Factoría para crear una instancia configurada de NexusRouter.
@@ -266,8 +351,9 @@ def crear_nexus_router(
     Args:
         motor: Instancia de HPRSecurityEngine.
         sanitizer: Instancia opcional de InputSanitizer.
+        executor: Instancia opcional de ExternalToolExecutor.
 
     Returns:
         NexusRouter listo para usar con enrutar().
     """
-    return NexusRouter(motor=motor, sanitizer=sanitizer)
+    return NexusRouter(motor=motor, sanitizer=sanitizer, executor=executor)
