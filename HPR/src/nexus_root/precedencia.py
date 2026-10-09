@@ -14,9 +14,9 @@ NIVELES DE PRECEDENCIA (de mayor a menor):
 from typing import Optional, Tuple, Dict, Any, Callable
 import logging
 
-from src.security_agent import HPRSecurityEngine
-from src.models.contracts import PipelineState, NivelRiesgo, CategoriaConsulta
-from src.nexus_root.sanitizer import InputSanitizer
+from security_agent import HPRSecurityEngine
+from models.contracts import PipelineState, NivelRiesgo, CategoriaConsulta
+from .sanitizer import InputSanitizer
 
 # Configuración de logging
 logger = logging.getLogger(__name__)
