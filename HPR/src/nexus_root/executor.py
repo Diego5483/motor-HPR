@@ -22,6 +22,8 @@ from typing import Tuple
 import requests
 from bs4 import BeautifulSoup
 
+from core.stratified_reasoning import crear_nivel1_busqueda, USE_STRATIFIED_REASONING
+
 logger = logging.getLogger(__name__)
 
 
@@ -130,6 +132,9 @@ class ExternalToolExecutor:
         """
         self.session = session or requests.Session()
         self.session.headers.update(self.DEFAULT_HEADERS)
+        
+        # Inicializar Nivel 1: Búsqueda Cognitiva (Fase 1 - Razonamiento Estratificado)
+        self.nivel1_busqueda = crear_nivel1_busqueda()
         
         self._herramientas = {
             "web_search": self._ejecutar_busqueda_web,
@@ -545,7 +550,8 @@ class ExternalToolExecutor:
         resultados_crudos: List[Dict[str, str]], 
         query: str
     ) -> List[ResultadoItem]:
-        """Procesa resultados crudos a ResultadoItem con scoring de relevancia."""
+        """Procesa resultados crudos a ResultadoItem con scoring cognitivo (Nivel 1)."""
+        # 1. Scoring léxico básico (original)
         query_terms = set(query.lower().split())
         items = []
         
@@ -559,16 +565,49 @@ class ExternalToolExecutor:
             # Penalizar por posición
             relevancia *= (1.0 - i * 0.05)
             
-            items.append(ResultadoItem(
-                titulo=r["titulo"],
-                url=r["url"],
-                snippet=r["snippet"],
-                fuente=r["fuente"],
-                relevancia=round(relevancia, 2),
-                metadatos_extra={"posicion": i + 1}
+            items.append({
+                "titulo": r["titulo"],
+                "url": r["url"],
+                "snippet": r["snippet"],
+                "fuente": r["fuente"],
+                "relevancia": round(relevancia, 2),
+                "posicion": i + 1
+            })
+        
+        # 2. Nivel 1: Búsqueda Cognitiva - Filtrado por score cognitivo
+        if USE_STRATIFIED_REASONING:
+            # Convertir items a formato esperado por Nivel1
+            resultados_para_nivel1 = []
+            for item in items:
+                resultados_para_nivel1.append({
+                    "titulo": item["titulo"],
+                    "url": item["url"],
+                    "snippet": item["snippet"],
+                    "fuente": item["fuente"],
+                    "relevancia": item["relevancia"]
+                })
+            
+            # Aplicar filtrado cognitivo
+            items_filtrados = self.nivel1_busqueda.obtener_fuentes_validas(resultados_para_nivel1)
+            
+            if len(items_filtrados) < len(items):
+                logger.info(f"Nivel1: Filtrados {len(items) - len(items_filtrados)}/{len(items)} resultados por score cognitivo")
+            
+            items = items_filtrados
+        
+        # 3. Convertir a ResultadoItem
+        resultado_items = []
+        for item in items:
+            resultado_items.append(ResultadoItem(
+                titulo=item["titulo"],
+                url=item["url"],
+                snippet=item["snippet"],
+                fuente=item["fuente"],
+                relevancia=item["relevancia"],
+                metadatos_extra={"posicion": item.get("posicion", 0)}
             ))
         
-        return items
+        return resultado_items
     
     def _enriquecer_resultados(self, resultados: List[ResultadoItem]) -> List[ResultadoItem]:
         """
