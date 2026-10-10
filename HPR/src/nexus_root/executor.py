@@ -688,18 +688,32 @@ class ExternalToolExecutor:
             ],
             "arm": [
                 {
-                    "titulo": "ARMv9 Architecture Reference Manual",
+                    "titulo": "ARMv9 Architecture Reference Manual - ARM Developer",
                     "url": "https://developer.arm.com/architectures/cpu-architecture/a-profile/aarch64",
                     "snippet": "ARMv9 is the latest ARM architecture, introducing new security features like Memory Tagging Extension (MTE) and Confidential Compute Architecture (CCA).",
                     "fuente": "developer.arm.com",
-                    "contenido": "ARMv9 is the latest generation of the ARM architecture, announced in March 2021. It introduces significant improvements in security and performance. Key features include Memory Tagging Extension (MTE) for memory safety, Confidential Compute Architecture (CCA) for hardware-based isolation, and Scalable Vector Extension 2 (SVE2) for enhanced vector processing."
+                    "contenido": "ARMv9 is the latest generation of the ARM architecture, announced in March 2021. It introduces significant improvements in security and performance. Key features include Memory Tagging Extension (MTE) for memory safety, Confidential Compute Architecture (CCA) for hardware-based isolation, and Scalable Vector Extension 2 (SVE2) for enhanced vector processing. MTE provides hardware-assisted detection of memory safety bugs such as buffer overflows and use-after-free errors by tagging memory allocations and checking tags on access. CCA introduces Realms, a new execution environment that provides hardware-enforced isolation for confidential workloads. Realms run at EL0 but are isolated from the hypervisor and OS by the Realm Management Extension (RME). SVE2 extends the Scalable Vector Extension with additional instructions for DSP, ML, and cryptography workloads. ARMv9-A architecture version 9.0 includes mandatory MTE support and optional CCA/RME. Compatible with AArch64 execution state. Supported by Linux kernel 5.10+ and Android 12+."
                 },
                 {
-                    "titulo": "ARMv9 Architecture - Latest News and Updates",
-                    "url": "https://www.arm.com/architecture/cpu/aarch64",
-                    "snippet": "Explore the latest ARMv9 architecture features including MTE, CCA, and SVE2 for enhanced security and performance.",
-                    "fuente": "arm.com",
-                    "contenido": "ARMv9 architecture introduces groundbreaking security features. Memory Tagging Extension (MTE) helps detect memory safety bugs. Confidential Compute Architecture (CCA) provides hardware-enforced isolation. SVE2 extends vector processing capabilities."
+                    "titulo": "ARMv9 Architecture - MTE Technical Deep Dive",
+                    "url": "https://developer.arm.com/documentation/102420/0100/",
+                    "snippet": "Memory Tagging Extension (MTE) in ARMv9 provides hardware-assisted memory safety with 4-bit tags per 16-byte granule.",
+                    "fuente": "developer.arm.com",
+                    "contenido": "Memory Tagging Extension (MTE) is a key security feature in ARMv9-A architecture. MTE assigns 4-bit tags to 16-byte memory granules, enabling hardware detection of spatial and temporal memory safety violations. MTE operates in three modes: synchronous (precise exception on tag mismatch), asynchronous (imprecise exception for performance), and disabled. MTE tags are stored in the top byte of 64-bit pointers (TBI - Top Byte Ignored). Linux kernel 5.10+ supports MTE via CONFIG_ARM64_MTE. Android 12+ enables MTE for heap allocations via HWASan integration. Performance overhead: ~2-5% for synchronous mode, <1% for asynchronous. MTE detects: heap buffer overflow, stack buffer overflow, use-after-free, double-free, and uninitialized memory access. Supported on Cortex-X2, Cortex-A710, Cortex-A510, Neoverse V2, Neoverse N2."
+                },
+                {
+                    "titulo": "ARM Confidential Compute Architecture (CCA) - Realm Management",
+                    "url": "https://developer.arm.com/architectures/security-features/confidential-compute-architecture",
+                    "snippet": "CCA introduces Realms for hardware-enforced isolation with Realm Management Extension (RME).",
+                    "fuente": "developer.arm.com",
+                    "contenido": "Confidential Compute Architecture (CCA) is a hardware-based isolation technology in ARMv9-A. CCA introduces Realms - a new execution environment that provides hardware-enforced isolation for confidential workloads. Realms run at EL0 but are isolated from the hypervisor (EL2) and OS (EL1) by the Realm Management Extension (RME). RME introduces a new physical address space (PAS) with four types: Secure, Non-secure, Root, and Realm. Realm worlds have their own translation tables (Stage 2 translation managed by Realm Management Monitor - RMM). RMM runs at EL2 and manages Realm lifecycle: creation, destruction, entry/exit. Attestation: CCA provides remote attestation via Realm Attestation Token (RAT) signed by platform key. Supported on Cortex-X2, Cortex-A710, Neoverse V2, Neoverse N2. Linux kernel 5.15+ supports CCA via KVM/Realm support. Use cases: confidential VMs, secure enclaves, DRM, payment processing."
+                },
+                {
+                    "titulo": "SVE2 - Scalable Vector Extension 2 Specification",
+                    "url": "https://developer.arm.com/architectures/instruction-sets/simd-isas/sve/sve2",
+                    "snippet": "SVE2 extends SVE with instructions for DSP, ML, and cryptography workloads.",
+                    "fuente": "developer.arm.com",
+                    "contenido": "Scalable Vector Extension 2 (SVE2) is an extension to the Scalable Vector Extension (SVE) in ARMv9-A architecture. SVE2 adds instructions for: Digital Signal Processing (DSP) - dot product, multiply-accumulate, convolutions; Machine Learning - BF16/FP16/INT8 matrix multiply, activation functions; Cryptography - AES, SHA2/3, SM3/SM4 acceleration; General purpose - histogram, population count, bit manipulation. SVE2 vector length is scalable from 128 to 2048 bits in 128-bit increments. Hardware implementations: Cortex-X2 (128-bit), Cortex-A710 (128-bit), Neoverse V2 (256-bit), Neoverse N2 (128-bit). SVE2 includes all SVE instructions plus: BF16/FP16 dot product (BFDOT, BFDOT), INT8 dot product (SDOT, UDOT), matrix multiply (SMMLA, UMMLA), AES/SHA (AESD, AESE, AESMC, AESIMC, SHA256H, SHA256H2, SHA256SU0, SHA256SU1). Compiler support: GCC 11+, LLVM 13+, armclang 2021+. Auto-vectorization for ML/DSP workloads."
                 }
             ],
             "nvidia": [
@@ -742,6 +756,22 @@ class ExternalToolExecutor:
                     "fuente": "techcrunch.com",
                     "contenido": "TechCrunch is a leading technology media property, dedicated to profiling startups, reviewing new Internet products, and breaking tech news."
                 }
+            ],
+            "riscv": [
+                {
+                    "titulo": "RISC-V Vector Extension (RVV) 1.0 Specification",
+                    "url": "https://github.com/riscv/riscv-v-spec/releases/tag/v1.0",
+                    "snippet": "RISC-V Vector Extension (RVV) 1.0 ratified - scalable vector ISA for HPC, ML, DSP.",
+                    "fuente": "riscv.org",
+                    "contenido": "RISC-V Vector Extension (RVV) version 1.0 was ratified in December 2021. RVV is a scalable vector ISA extension for RISC-V, supporting vector lengths from 128 to 65536 bits (VLEN). Key features: configurable vector length (VLEN) from 128 to 65536 bits, element widths (SEW) from 8 to 64 bits, vector register grouping (LMUL) from 1/8 to 8, mask registers (v0-v31), configurable number of vector registers (32 architectural, up to 256 with grouping). Instructions: vector arithmetic (add, sub, mul, div), memory (load/store unit-stride, strided, indexed), reduction (sum, min, max), mask operations, slide/permute, fixed-point, floating-point (FP16/FP32/FP64), integer (8/16/32/64-bit). Supports: configurable vector length per hart, context save/restore via vcsr/vxsat/vxrm, trap handling, interruptible long-running instructions. Ratified extensions: Zvkb (bit-manipulation), Zvkc (carry-less multiply), Zvkg (Galois field), Zvknh (SHA2), Zvkn (NIST AES), Zvksed (SM4), Zvksh (SHA3), Zvkt (RSA). Hardware implementations: SiFive P650 (VLEN=256), SiFive X280 (VLEN=512), Ventana Veyron V1 (VLEN=512), Andes AX45MPV (VLEN=256), Tenstorrent Ascalon. Linux kernel 5.19+ supports RVV 1.0. GCC 11+, LLVM 14+ compiler support."
+                },
+                {
+                    "titulo": "RISC-V Vector Extension - SiFive Implementation Guide",
+                    "url": "https://www.sifive.com/riscv-vector-extension",
+                    "snippet": "SiFive P650/X280 implement RVV 1.0 with VLEN 256/512 for ML and HPC workloads.",
+                    "fuente": "sifive.com",
+                    "contenido": "SiFive offers RISC-V cores with RVV 1.0 support: P650 (mid-range, VLEN=256, 64-bit, Linux-capable, 4-8 cores, SPECint2006 ~5.5/GHz) and X280 (high-performance, VLEN=512, 64-bit, Linux-capable, 8-16 cores, SPECint2006 ~8.0/GHz). Both support: RVV 1.0 with VLEN 256/512, Zvkb/Zvkc/Zvkg/Zvknh/Zvkn/Zvksed/Zvksh/Zvkt extensions, custom vector lengths via VLEN parameter, multi-core coherent with CCIs. P650 features: 8-stage pipeline, 64KB L1I/D, 1-16MB L2, AXI4/CHI, AMBA 5. X280 features: 12-stage pipeline, 64KB L1I/D, 2-32MB L2, CHI-B, AMBA 5. Both support: Linux 5.15+, GCC 11+, LLVM 14+, OpenMP 5.0, OpenCL via POCL. Use cases: ML inference (INT8/BF16), HPC (FP64), DSP (INT16), cryptography (Zvk*). Power: P650 ~1.5W/GHz/core, X280 ~3W/GHz/core (28nm/7nm process)."
+                }
             ]
         }
         
@@ -753,6 +783,8 @@ class ExternalToolExecutor:
             mock_data = mock_database["arm"]
         elif "nvidia" in query_lower or "rtx" in query_lower or "geforce" in query_lower or "ada lovelace" in query_lower or "cuda" in query_lower or "tensor core" in query_lower:
             mock_data = mock_database["nvidia"]
+        elif "riscv" in query_lower or "risc-v" in query_lower or "rvv" in query_lower or "vector extension" in query_lower:
+            mock_data = mock_database["riscv"]
         elif "hardware" in query_lower or "gpu" in query_lower or "cpu" in query_lower or "specs" in query_lower or "especificaciones" in query_lower:
             mock_data = mock_database["hardware"]
         else:

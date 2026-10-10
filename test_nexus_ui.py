@@ -132,47 +132,54 @@ if input_a_evaluar is not None:
             # CALLBACKS — definidos ANTES del render para reactividad nativa
             # ------------------------------------------------------------------
             def _generar_audio_callback():
-                """Genera audio y guarda bytes en session_state (sin st.rerun)."""
+                """Genera audio y guarda bytes en session_state (sin st.rerun, no bloqueante)."""
                 voz = st.session_state.get("select_voz_tts", "es-ES-ElviraNeural")
                 texto = st.session_state.get("audio_texto_completo", "")
                 if not texto or not texto.strip():
                     st.session_state.audio_error = "Texto vacío o inválido"
+                    st.session_state.audio_generando = False
                     st.session_state.audio_generado = False
                     return
 
-                with st.spinner("Generando audio con Edge TTS..."):
-                    try:
-                        import logging
-                        from nexus_root.nexus_voice import crear_voice_synthesizer
-                        import tempfile
+                # Marcar como generando (para deshabilitar botón) - SIN st.spinner
+                st.session_state.audio_generando = True
+                st.session_state.audio_error = None
 
-                        voice_synthesizer = crear_voice_synthesizer()
-                        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                            audio_path = tmp.name
+                try:
+                    import logging
+                    from nexus_root.nexus_voice import crear_voice_synthesizer
+                    import tempfile
 
-                        resultado_audio = voice_synthesizer.generar_audio_informe(
-                            texto_informe=texto,
-                            output_path=audio_path,
-                            voz=voz
-                        )
+                    voice_synthesizer = crear_voice_synthesizer()
+                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                        audio_path = tmp.name
 
-                        if resultado_audio.get("exito"):
-                            with open(resultado_audio["archivo_audio"], "rb") as f:
-                                st.session_state.audio_bytes = f.read()
-                            st.session_state.audio_generado = True
-                            st.session_state.audio_duracion = resultado_audio.get('duracion_estimada', 0)
-                            st.session_state.audio_tamano = resultado_audio.get('tamaño_bytes', 0)
-                            st.session_state.audio_voz = resultado_audio.get('voz_usada', voz)
-                            st.session_state.audio_error = None
-                        else:
-                            st.session_state.audio_error = resultado_audio.get('error', 'Error desconocido')
-                            st.session_state.audio_generado = False
-                            st.session_state.audio_bytes = None
-                    except Exception as e:
-                        logging.error(f"Error generando audio: {e}", exc_info=True)
-                        st.session_state.audio_error = f"Error generando audio: {str(e)}"
+                    resultado_audio = voice_synthesizer.generar_audio_informe(
+                        texto_informe=texto,
+                        output_path=audio_path,
+                        voz=voz
+                    )
+
+                    if resultado_audio.get("exito"):
+                        with open(resultado_audio["archivo_audio"], "rb") as f:
+                            st.session_state.audio_bytes = f.read()
+                        st.session_state.audio_generado = True
+                        st.session_state.audio_duracion = resultado_audio.get('duracion_estimada', 0)
+                        st.session_state.audio_tamano = resultado_audio.get('tamaño_bytes', 0)
+                        st.session_state.audio_voz = resultado_audio.get('voz_usada', voz)
+                        st.session_state.audio_error = None
+                    else:
+                        st.session_state.audio_error = resultado_audio.get('error', 'Error desconocido')
                         st.session_state.audio_generado = False
                         st.session_state.audio_bytes = None
+                except Exception as e:
+                    logging.error(f"Error generando audio: {e}", exc_info=True)
+                    st.session_state.audio_error = f"Error generando audio: {str(e)}"
+                    st.session_state.audio_generado = False
+                    st.session_state.audio_bytes = None
+                finally:
+                    # Siempre limpiar estado de generación
+                    st.session_state.audio_generando = False
 
             def _limpiar_audio_callback():
                 """Resetea todo el estado de audio (sin st.rerun)."""
@@ -183,6 +190,7 @@ if input_a_evaluar is not None:
                     "audio_duracion": 0,
                     "audio_tamano": 0,
                     "audio_voz": None,
+                    "audio_generando": False,
                 }.items():
                     st.session_state[k] = v
 
@@ -212,6 +220,7 @@ if input_a_evaluar is not None:
                 st.session_state.audio_duracion = 0
                 st.session_state.audio_tamano = 0
                 st.session_state.audio_voz = None
+                st.session_state.audio_generando = False
 
             # Construir texto completo del informe para síntesis de voz (solo una vez)
             def _safe_str(val) -> str:
@@ -249,6 +258,7 @@ if input_a_evaluar is not None:
             if st.session_state.get("audio_texto_completo", "").strip():
                 col_audio1, col_audio2 = st.columns([1, 3])
                 with col_audio1:
+                    generando = st.session_state.get("audio_generando", False)
                     if not st.session_state.get("audio_generado", False):
                         # Botón generar / reintentar unificado
                         st.button(
@@ -257,15 +267,20 @@ if input_a_evaluar is not None:
                             use_container_width=True,
                             on_click=_generar_audio_callback,
                             key="btn_audio_generar",
-                            disabled=st.session_state.get("audio_generado", False),  # evita doble click
+                            disabled=generando,
                         )
+                        if generando:
+                            st.info("⏳ Generando audio...")
                     else:
                         st.button(
                             "🔊 Regenerar Audio",
                             use_container_width=True,
                             on_click=_generar_audio_callback,
                             key="btn_audio_regenerar",
+                            disabled=generando,
                         )
+                        if generando:
+                            st.info("⏳ Regenerando audio...")
                 with col_audio2:
                     st.selectbox(
                         "Voz:",
