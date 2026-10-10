@@ -23,6 +23,7 @@ from .precedencia import (
 )
 from .executor import ExternalToolExecutor, ResultadoBusqueda, crear_executor
 from .synthesizer import NexusSynthesizer, crear_synthesizer
+from core.deep_synthesizer import DeepSynthesizer, crear_deep_synthesizer
 
 logger = logging.getLogger(__name__)
 
@@ -343,6 +344,7 @@ class NexusRouter:
         sanitizer: Optional[InputSanitizer] = None,
         executor: Optional[ExternalToolExecutor] = None,
         synthesizer: Optional[NexusSynthesizer] = None,
+        deep_synthesizer: Optional[DeepSynthesizer] = None,
     ):
         """
         Inicializa el Nexus Router con la cadena de responsabilidad completa.
@@ -356,13 +358,17 @@ class NexusRouter:
                       ejecutar herramientas externas (web_search, etc.).
                       Si no se proporciona, se crea uno por defecto.
             synthesizer: Instancia opcional de NexusSynthesizer para
-                         generar informes en lenguaje natural.
+                         generar informes en lenguaje natural (legacy).
                          Si no se proporciona, se crea uno por defecto.
+            deep_synthesizer: Instancia opcional de DeepSynthesizer para
+                              inferencia profunda sobre contenido real.
+                              Si no se proporciona, se crea uno por defecto.
         """
         self.motor = motor
         self.sanitizer = sanitizer or InputSanitizer()
         self.executor = executor or crear_executor()
         self.synthesizer = synthesizer or crear_synthesizer()
+        self.deep_synthesizer = deep_synthesizer or crear_deep_synthesizer()
 
         # Construir la cadena de responsabilidad en ORDEN ESTRICTO DE PRECEDENCIA
         # Cada handler recibe la misma instancia del motor (inyección de dependencias)
@@ -377,7 +383,8 @@ class NexusRouter:
             f"NexusRouter inicializado | handlers={len(self._cadena)} | "
             f"orden=[{', '.join(h.nombre for h in self._cadena)}] | "
             f"executor={'mock' if isinstance(self.executor, ExternalToolExecutor) else 'custom'} | "
-            f"synthesizer={'enabled' if self.synthesizer else 'disabled'}"
+            f"synthesizer={'enabled' if self.synthesizer else 'disabled'} | "
+            f"deep_synthesizer={'enabled' if self.deep_synthesizer else 'disabled'}"
         )
 
     def enrutar(
@@ -498,16 +505,39 @@ class NexusRouter:
                     f"(confianza={evaluacion_global.get('confianza', 0):.2f})"
                 )
 
-                # Generar informe en lenguaje natural usando el sintetizador
-                informe_sintesis = self.synthesizer.sintetizar(
-                    resultado_busqueda={
-                        "resultados": resultados_externos,
-                        "sintesis": "Resultados de búsqueda externa",
-                        "metadata": evaluacion_global
-                    },
-                    evaluacion_global=evaluacion_global,
-                    query_original=entrada_procesada
+                # Generar informe profundo usando DeepSynthesizer (inferencia sobre contenido real)
+                # Convertir resultados_externos al formato esperado por DeepSynthesizer
+                resultados_para_deep = []
+                for r in resultados_externos:
+                    if r.get("exito"):
+                        # Usar resultados_items que contiene los ResultadoItem estructurados
+                        items = r.get("resultados_items", [])
+                        for item in items:
+                            resultados_para_deep.append({
+                                "titulo": item.get("titulo", ""),
+                                "url": item.get("url", ""),
+                                "snippet": item.get("snippet", ""),
+                                "fuente": item.get("fuente", r.get("fuente", "desconocida")),
+                                "relevancia": item.get("relevancia", 1.0),
+                                "contenido_completo": item.get("contenido_completo"),
+                            })
+                
+                informe_profundo = self.deep_synthesizer.procesar_resultados(
+                    query=entrada_procesada,
+                    resultados=resultados_para_deep,
+                    evaluacion_global=evaluacion_global
                 )
+
+                # Construir informe_sintesis compatible con formato existente
+                informe_sintesis_dict = {
+                    "encabezado_confianza": self._formatear_encabezado_desde_evaluacion(evaluacion_global),
+                    "introduccion": informe_profundo.introduccion,
+                    "hallazgos_clave": [h.descripcion for h in informe_profundo.hallazgos_tecnicos],
+                    "analisis_tecnico": informe_profundo.analisis_detallado,
+                    "conclusiones": informe_profundo.conclusiones,
+                    "advertencias": informe_profundo.advertencias,
+                    "metadata_fuentes": informe_profundo.metricas_procesamiento,
+                }
 
                 return {
                     "decision": "ejecucion_externa_completada",
@@ -517,15 +547,7 @@ class NexusRouter:
                     "metadata": metadata_acumulado,
                     "entrada_procesada": entrada_procesada,
                     "state": state,
-                    "informe_sintesis": {
-                        "encabezado_confianza": informe_sintesis.encabezado_confianza,
-                        "introduccion": informe_sintesis.introduccion,
-                        "hallazgos_clave": informe_sintesis.hallazgos_clave,
-                        "analisis_tecnico": informe_sintesis.analisis_tecnico,
-                        "conclusiones": informe_sintesis.conclusiones,
-                        "advertencias": informe_sintesis.advertencias,
-                        "metadata_fuentes": informe_sintesis.metadata_fuentes,
-                    }
+                    "informe_sintesis": informe_sintesis_dict,
                 }
 
             if condicion_cumplida:
@@ -567,6 +589,20 @@ class NexusRouter:
             "entrada_procesada": entrada_procesada,
             "state": state,
         }
+
+    def _formatear_encabezado_desde_evaluacion(self, evaluacion: Dict[str, Any]) -> str:
+        """Genera encabezado de confianza a partir de evaluación global."""
+        nivel = evaluacion.get("nivel_confianza", "DESCONOCIDO")
+        score = evaluacion.get("score_final", 0.0)
+        
+        templates = {
+            "CONFIANZA_ALTA": f"✅ **Información auditada con CONFIANZA ALTA** (Score: {score:.2f}) — Fuente verificada, segura y relevante.",
+            "CONFIANZA_MEDIA": f"⚠️ **Información auditada con CONFIANZA MODERADA** (Score: {score:.2f}) — Parcialmente verificable, presentar con cautela.",
+            "CONFIANZA_BAJA": f"⚠️ **Información auditada con CONFIANZA BAJA** (Score: {score:.2f}) — Muy poca verificabilidad, usar con precaución extrema.",
+            "CONFIANZA_NULA": f"🚫 **BLOQUEO DE SEGURIDAD** — Información sin valor confiable verificable. Contenido descartado por auditoría.",
+            "RECHAZO_CRITICO": f"🛑 **BLOQUEO CRÍTICO DE SEGURIDAD** — Contenido malicioso o altamente sospechoso detectado. Acceso denegado.",
+        }
+        return templates.get(nivel, f"Nivel de confianza: {nivel} (Score: {score:.2f})")
 
     def _ejecutar_herramientas_externas(
         self, 
@@ -612,11 +648,22 @@ class NexusRouter:
             resultados.append({
                 "herramienta": herramienta,
                 "exito": resultado.exito,
-                "contenido": resultado.sintesis,  # Usar sintesis como contenido principal
+                "contenido": resultado.sintesis,
                 "fuente": resultado.fuente,
                 "metadatos": resultado.metadatos,
+                "resultados_items": [
+                    {
+                        "titulo": item.titulo,
+                        "url": item.url,
+                        "snippet": item.snippet,
+                        "fuente": item.fuente,
+                        "relevancia": item.relevancia,
+                        "contenido_completo": item.contenido_completo,
+                        "metadatos_extra": item.metadatos_extra
+                    }
+                    for item in resultado.resultados
+                ],
                 "error": resultado.error,
-                # NUEVO: Evaluación del Nexus Root
                 "evaluacion_nexus": evaluacion
             })
         
@@ -861,6 +908,7 @@ def crear_nexus_router(
     sanitizer: Optional[InputSanitizer] = None,
     executor: Optional[ExternalToolExecutor] = None,
     synthesizer: Optional[NexusSynthesizer] = None,
+    deep_synthesizer: Optional[DeepSynthesizer] = None,
 ) -> NexusRouter:
     """
     Factoría para crear una instancia configurada de NexusRouter.
@@ -869,7 +917,8 @@ def crear_nexus_router(
         motor: Instancia de HPRSecurityEngine.
         sanitizer: Instancia opcional de InputSanitizer.
         executor: Instancia opcional de ExternalToolExecutor.
-        synthesizer: Instancia opcional de NexusSynthesizer.
+        synthesizer: Instancia opcional de NexusSynthesizer (legacy).
+        deep_synthesizer: Instancia opcional de DeepSynthesizer (inferencia profunda).
 
     Returns:
         NexusRouter listo para usar con enrutar().
@@ -878,5 +927,6 @@ def crear_nexus_router(
         motor=motor, 
         sanitizer=sanitizer, 
         executor=executor,
-        synthesizer=synthesizer
+        synthesizer=synthesizer,
+        deep_synthesizer=deep_synthesizer
     )
