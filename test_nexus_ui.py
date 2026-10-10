@@ -191,6 +191,17 @@ if input_a_evaluar is not None:
                 st.session_state.audio_error = None
                 st.session_state.audio_generado = False
 
+            def _voz_cambiada_callback():
+                """Callback al cambiar voz: invalida audio generado para forzar regeneración con nueva voz."""
+                # La selección ya se guarda automáticamente en st.session_state["select_voz_tts"] por el key
+                # Si ya hay audio generado, marcarlo como obsoleto para que el usuario regenere
+                if st.session_state.get("audio_generado", False):
+                    st.session_state.audio_generado = False
+                    st.session_state.audio_bytes = None
+                    st.session_state.audio_voz = None
+                    st.session_state.audio_duracion = 0
+                    st.session_state.audio_tamano = 0
+
             # ------------------------------------------------------------------
             # INICIALIZACIÓN DE ESTADO (solo primera vez)
             # ------------------------------------------------------------------
@@ -254,6 +265,7 @@ if input_a_evaluar is not None:
                         format_func=lambda x: VOCES_DISPONIBLES.get(x, x),
                         index=0,
                         key="select_voz_tts",
+                        on_change=_voz_cambiada_callback,
                     )
 
                 # Botón limpiar (siempre visible si hay audio o error)
