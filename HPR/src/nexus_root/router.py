@@ -22,6 +22,7 @@ from .precedencia import (
     BasePriorityHandler,
 )
 from .executor import ExternalToolExecutor, ResultadoBusqueda, crear_executor
+from .synthesizer import NexusSynthesizer, crear_synthesizer
 
 logger = logging.getLogger(__name__)
 
@@ -341,6 +342,7 @@ class NexusRouter:
         motor: HPRSecurityEngine,
         sanitizer: Optional[InputSanitizer] = None,
         executor: Optional[ExternalToolExecutor] = None,
+        synthesizer: Optional[NexusSynthesizer] = None,
     ):
         """
         Inicializa el Nexus Router con la cadena de responsabilidad completa.
@@ -353,10 +355,14 @@ class NexusRouter:
             executor: Instancia opcional de ExternalToolExecutor para
                       ejecutar herramientas externas (web_search, etc.).
                       Si no se proporciona, se crea uno por defecto.
+            synthesizer: Instancia opcional de NexusSynthesizer para
+                         generar informes en lenguaje natural.
+                         Si no se proporciona, se crea uno por defecto.
         """
         self.motor = motor
         self.sanitizer = sanitizer or InputSanitizer()
         self.executor = executor or crear_executor()
+        self.synthesizer = synthesizer or crear_synthesizer()
 
         # Construir la cadena de responsabilidad en ORDEN ESTRICTO DE PRECEDENCIA
         # Cada handler recibe la misma instancia del motor (inyección de dependencias)
@@ -370,7 +376,8 @@ class NexusRouter:
         logger.info(
             f"NexusRouter inicializado | handlers={len(self._cadena)} | "
             f"orden=[{', '.join(h.nombre for h in self._cadena)}] | "
-            f"executor={'mock' if isinstance(self.executor, ExternalToolExecutor) else 'custom'}"
+            f"executor={'mock' if isinstance(self.executor, ExternalToolExecutor) else 'custom'} | "
+            f"synthesizer={'enabled' if self.synthesizer else 'disabled'}"
         )
 
     def enrutar(
@@ -491,6 +498,17 @@ class NexusRouter:
                     f"(confianza={evaluacion_global.get('confianza', 0):.2f})"
                 )
 
+                # Generar informe en lenguaje natural usando el sintetizador
+                informe_sintesis = self.synthesizer.sintetizar(
+                    resultado_busqueda={
+                        "resultados": resultados_externos,
+                        "sintesis": "Resultados de búsqueda externa",
+                        "metadata": evaluacion_global
+                    },
+                    evaluacion_global=evaluacion_global,
+                    query_original=entrada_procesada
+                )
+
                 return {
                     "decision": "ejecucion_externa_completada",
                     "nivel": handler.nombre,
@@ -499,6 +517,15 @@ class NexusRouter:
                     "metadata": metadata_acumulado,
                     "entrada_procesada": entrada_procesada,
                     "state": state,
+                    "informe_sintesis": {
+                        "encabezado_confianza": informe_sintesis.encabezado_confianza,
+                        "introduccion": informe_sintesis.introduccion,
+                        "hallazgos_clave": informe_sintesis.hallazgos_clave,
+                        "analisis_tecnico": informe_sintesis.analisis_tecnico,
+                        "conclusiones": informe_sintesis.conclusiones,
+                        "advertencias": informe_sintesis.advertencias,
+                        "metadata_fuentes": informe_sintesis.metadata_fuentes,
+                    }
                 }
 
             if condicion_cumplida:
@@ -833,6 +860,7 @@ def crear_nexus_router(
     motor: HPRSecurityEngine,
     sanitizer: Optional[InputSanitizer] = None,
     executor: Optional[ExternalToolExecutor] = None,
+    synthesizer: Optional[NexusSynthesizer] = None,
 ) -> NexusRouter:
     """
     Factoría para crear una instancia configurada de NexusRouter.
@@ -841,8 +869,14 @@ def crear_nexus_router(
         motor: Instancia de HPRSecurityEngine.
         sanitizer: Instancia opcional de InputSanitizer.
         executor: Instancia opcional de ExternalToolExecutor.
+        synthesizer: Instancia opcional de NexusSynthesizer.
 
     Returns:
         NexusRouter listo para usar con enrutar().
     """
-    return NexusRouter(motor=motor, sanitizer=sanitizer, executor=executor)
+    return NexusRouter(
+        motor=motor, 
+        sanitizer=sanitizer, 
+        executor=executor,
+        synthesizer=synthesizer
+    )

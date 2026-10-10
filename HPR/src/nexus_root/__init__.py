@@ -5,6 +5,7 @@ from .precedencia import NexusRootPrecedenceEngine
 from .sanitizer import InputSanitizer
 from .router import NexusRouter, crear_nexus_router
 from .executor import ExternalToolExecutor, ResultadoBusqueda, crear_executor
+from .synthesizer import NexusSynthesizer, crear_synthesizer
 
 __all__ = [
     "NexusRootPrecedenceEngine",
@@ -14,4 +15,6 @@ __all__ = [
     "ExternalToolExecutor",
     "ResultadoBusqueda",
     "crear_executor",
+    "NexusSynthesizer",
+    "crear_synthesizer",
 ]

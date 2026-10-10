@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 
 st.set_page_config(page_title="Test Nexus Root - HPR", page_icon="🛡️", layout="wide")
 st.title("🛡️ Sandbox de Pruebas: Motor Nexus Root (Fase 3)")
-st.markdown("Interfaz gráfica aislada para probar la **Matriz de Precedencia Lógica** determinista con ejecución de herramientas externas.")
+st.markdown("Interfaz gráfica aislada para probar la **Matriz de Precedencia Lógica** determinista con ejecución de herramientas externas y **síntesis en lenguaje natural**.")
 
 if "router" not in st.session_state:
     with st.spinner("Inicializando HPR Security Engine y Nexus Router..."):
@@ -73,36 +73,91 @@ if input_a_evaluar is not None:
     st.markdown(f"**Override:** `{override if override else 'N/A'}`")
     st.markdown(f"**Entrada procesada:** `{entrada_proc}`")
 
-    # NUEVO: Mostrar resultados de búsqueda externa si existen
-    metadata = resultado.get("metadata", {})
-    resultados_externos = metadata.get("resultados_externos")
-    if resultados_externos:
-        st.divider()
-        st.subheader("🔍 Resultados de Búsqueda Externa")
-        for i, res in enumerate(resultados_externos, 1):
-            with st.expander(f"🔧 Herramienta: {res['herramienta']} | {'✅ Éxito' if res['exito'] else '❌ Error'}"):
-                if res["exito"]:
-                    st.markdown(f"**Fuente:** `{res['fuente']}`")
-                    st.markdown(f"**Payload ejecutado:** `{res.get('metadatos', {}).get('query_original', 'N/A')}`")
-                    st.markdown("**Contenido:**")
-                    st.code(res["contenido"], language="text")
-                    st.markdown("**Metadatos:**")
-                    st.json(res["metadatos"])
-                else:
-                    st.error(f"Error: {res['error']}")
-                    st.json(res["metadatos"])
+    # ============================================================
+    # PESTAÑAS: Respuesta en Lenguaje Natural | Trazabilidad y Metadatos
+    # ============================================================
+    tab1, tab2 = st.tabs(["📝 Respuesta en Lenguaje Natural", "🔧 Trazabilidad y Metadatos"])
 
-    st.markdown("**Metadatos Completos del Enrutador:**")
-    st.json(resultado)
+    with tab1:
+        st.subheader("📝 Informe en Lenguaje Natural")
+        
+        # Verificar si hay informe de síntesis (para decisiones con ejecución externa)
+        informe_sintesis = resultado.get("informe_sintesis")
+        if informe_sintesis:
+            # Encabezado de confianza
+            st.markdown(informe_sintesis.get("encabezado_confianza", ""))
+            st.divider()
+            
+            # Introducción
+            if informe_sintesis.get("introduccion"):
+                st.markdown("### Introducción")
+                st.markdown(informe_sintesis["introduccion"])
+                st.divider()
+            
+            # Hallazgos clave
+            hallazgos = informe_sintesis.get("hallazgos_clave", [])
+            if hallazgos:
+                st.markdown("### Hallazgos Clave")
+                for hallazgo in hallazgos:
+                    st.markdown(f"- {hallazgo}")
+                st.divider()
+            
+            # Análisis técnico
+            if informe_sintesis.get("analisis_tecnico"):
+                st.markdown("### Análisis Técnico")
+                st.markdown(informe_sintesis["analisis_tecnico"])
+                st.divider()
+            
+            # Conclusiones
+            if informe_sintesis.get("conclusiones"):
+                st.markdown("### Conclusiones y Recomendaciones")
+                st.markdown(informe_sintesis["conclusiones"])
+                st.divider()
+            
+            # Advertencias
+            advertencias = informe_sintesis.get("advertencias", [])
+            if advertencias:
+                st.markdown("### Advertencias")
+                for adv in advertencias:
+                    st.markdown(f"- {adv}")
+        else:
+            # Para otros tipos de decisión (bloqueo, trigger_confianza, delegacion_multilingue)
+            st.info("ℹ️ Esta decisión no genera un informe de síntesis completo.")
+            st.markdown(f"**Decisión:** `{decision}`")
+            st.markdown(f"**Nivel:** `{nivel}`")
+            if override:
+                st.markdown(f"**Override:** `{override}`")
 
-    # Mostrar la cadena de handlers evaluados
-    with st.expander("🔍 Detalle de la Cadena de Responsabilidad"):
+    with tab2:
+        # NUEVO: Mostrar resultados de búsqueda externa si existen
         metadata = resultado.get("metadata", {})
-        handlers_eval = metadata.get("handlers_evaluados", [])
-        st.markdown("**Handlers evaluados en orden:**")
-        for i, h in enumerate(handlers_eval, 1):
-            decisor = " ⭐ **DECISOR**" if h == metadata.get("handler_decisor") else ""
-            st.markdown(f"{i}. `{h}`{decisor}")
+        resultados_externos = metadata.get("resultados_externos")
+        if resultados_externos:
+            st.subheader("🔍 Resultados de Búsqueda Externa")
+            for i, res in enumerate(resultados_externos, 1):
+                with st.expander(f"🔧 Herramienta: {res['herramienta']} | {'✅ Éxito' if res['exito'] else '❌ Error'}"):
+                    if res["exito"]:
+                        st.markdown(f"**Fuente:** `{res['fuente']}`")
+                        st.markdown(f"**Payload ejecutado:** `{res.get('metadatos', {}).get('query_original', 'N/A')}`")
+                        st.markdown("**Contenido:**")
+                        st.code(res["contenido"], language="text")
+                        st.markdown("**Metadatos:**")
+                        st.json(res["metadatos"])
+                    else:
+                        st.error(f"Error: {res['error']}")
+                        st.json(res["metadatos"])
 
-        st.markdown("**Metadata completa:**")
-        st.json(metadata)
+        st.markdown("**Metadatos Completos del Enrutador:**")
+        st.json(resultado)
+
+        # Mostrar la cadena de handlers evaluados
+        with st.expander("🔍 Detalle de la Cadena de Responsabilidad"):
+            metadata = resultado.get("metadata", {})
+            handlers_eval = metadata.get("handlers_evaluados", [])
+            st.markdown("**Handlers evaluados en orden:**")
+            for i, h in enumerate(handlers_eval, 1):
+                decisor = " ⭐ **DECISOR**" if h == metadata.get("handler_decisor") else ""
+                st.markdown(f"{i}. `{h}`{decisor}")
+
+            st.markdown("**Metadata completa:**")
+            st.json(metadata)
