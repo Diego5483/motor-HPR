@@ -205,8 +205,8 @@ class MediumPriorityHandler(BaseHandler):
         metadata = {"nivel": "MEDIA"}
         
         # Patrones de triggers - buscar en cualquier posición (no solo inicio)
-        patron_nivel1 = re.compile(r"@nivel1\b")
-        patron_web_search = re.compile(r"@web_search\b")
+        patron_nivel1 = re.compile(r"@nivel1\b", re.IGNORECASE)
+        patron_web_search = re.compile(r"@web_search\b", re.IGNORECASE)
         
         triggers_detectados = []
         

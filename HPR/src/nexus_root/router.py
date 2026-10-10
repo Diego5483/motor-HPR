@@ -626,6 +626,10 @@ class NexusRouter:
             herramienta = trigger_info["tipo"]  # "web_search"
             payload = trigger_info["payload"]   # query extraída
             
+            # Seguridad: limpiar cualquier prefijo de trigger residual en el payload
+            if herramienta == "web_search" and isinstance(payload, str):
+                payload = re.sub(r'^@web_search\s*', '', payload, flags=re.IGNORECASE).strip()
+            
             if not payload:
                 # Si no hay payload específico, usar entrada original
                 payload = entrada_original

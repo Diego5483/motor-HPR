@@ -702,6 +702,38 @@ class ExternalToolExecutor:
                     "contenido": "ARMv9 architecture introduces groundbreaking security features. Memory Tagging Extension (MTE) helps detect memory safety bugs. Confidential Compute Architecture (CCA) provides hardware-enforced isolation. SVE2 extends vector processing capabilities."
                 }
             ],
+            "nvidia": [
+                {
+                    "titulo": "NVIDIA RTX 4090 - Technical Specifications",
+                    "url": "https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/rtx-4090/",
+                    "snippet": "NVIDIA RTX 4090 features 24GB GDDR6X, 16384 CUDA cores, Ada Lovelace architecture, 4th gen Tensor cores, 3rd gen RT cores.",
+                    "fuente": "nvidia.com",
+                    "contenido": "The NVIDIA GeForce RTX 4090 is the flagship GPU of the RTX 40 series, built on the Ada Lovelace architecture. It features 16384 CUDA cores, 24GB of GDDR6X memory with a 384-bit bus, 4th generation Tensor cores for AI acceleration, 3rd generation RT cores for ray tracing, and supports DLSS 3.0 with frame generation. TDP is 450W. Base clock 2235 MHz, boost clock 2520 MHz."
+                },
+                {
+                    "titulo": "NVIDIA Ada Lovelace Architecture - Technical Deep Dive",
+                    "url": "https://www.nvidia.com/en-us/data-center/ada-lovelace-architecture/",
+                    "snippet": "Ada Lovelace architecture introduces 4th gen Tensor cores, 3rd gen RT cores, Shader Execution Reordering, Dual AV1 encoders.",
+                    "fuente": "nvidia.com",
+                    "contenido": "The Ada Lovelace architecture is NVIDIA's latest GPU architecture, succeeding Ampere. Key innovations include: 4th generation Tensor cores with FP8 support for AI inference, 3rd generation RT cores with improved ray-triangle intersection performance, Shader Execution Reordering (SER) for improved ray tracing efficiency, Dual NVENC encoders with AV1 support, and improved memory subsystem with 384-bit bus on flagship models."
+                },
+                {
+                    "titulo": "NVIDIA RTX 40 Series - GPU Specifications Comparison",
+                    "url": "https://www.nvidia.com/en-us/geforce/graphics-cards/40-series/",
+                    "snippet": "RTX 4090, 4080, 4070 Ti, 4070 specifications compared: CUDA cores, VRAM, memory bandwidth, TDP.",
+                    "fuente": "nvidia.com",
+                    "contenido": "The RTX 40 series includes RTX 4090 (16384 CUDA, 24GB GDDR6X, 450W), RTX 4080 (9728 CUDA, 16GB GDDR6X, 320W), RTX 4070 Ti (7680 CUDA, 12GB GDDR6X, 285W), RTX 4070 (5888 CUDA, 12GB GDDR6X, 200W). All feature Ada Lovelace architecture, DLSS 3.0, AV1 encoding."
+                }
+            ],
+            "hardware": [
+                {
+                    "titulo": "Latest CPU and GPU Architecture Specifications",
+                    "url": "https://www.anandtech.com/",
+                    "snippet": "Comprehensive technical analysis of latest processor and graphics architectures from Intel, AMD, NVIDIA, ARM.",
+                    "fuente": "anandtech.com",
+                    "contenido": "AnandTech provides deep-dive technical analysis of microprocessor architectures. Coverage includes Intel Core, AMD Ryzen, ARM Cortex, NVIDIA GeForce, AMD Radeon architectures with detailed specifications on cache hierarchy, execution pipelines, memory subsystems, and ISA extensions."
+                }
+            ],
             "technology": [
                 {
                     "titulo": "Latest Technology News - TechCrunch",
@@ -719,6 +751,10 @@ class ExternalToolExecutor:
             mock_data = mock_database["python"]
         elif "arm" in query_lower or "armv9" in query_lower:
             mock_data = mock_database["arm"]
+        elif "nvidia" in query_lower or "rtx" in query_lower or "geforce" in query_lower or "ada lovelace" in query_lower or "cuda" in query_lower or "tensor core" in query_lower:
+            mock_data = mock_database["nvidia"]
+        elif "hardware" in query_lower or "gpu" in query_lower or "cpu" in query_lower or "specs" in query_lower or "especificaciones" in query_lower:
+            mock_data = mock_database["hardware"]
         else:
             mock_data = mock_database["technology"]
         

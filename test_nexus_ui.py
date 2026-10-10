@@ -214,18 +214,26 @@ if input_a_evaluar is not None:
                 st.session_state.audio_voz = None
 
             # Construir texto completo del informe para síntesis de voz (solo una vez)
+            def _safe_str(val) -> str:
+                """Convierte valor a string de forma segura (maneja None, list, str)."""
+                if val is None:
+                    return ""
+                if isinstance(val, list):
+                    return "\n".join(str(v) for v in val)
+                return str(val)
+            
             if "audio_texto_completo" not in st.session_state:
                 texto_informe = ""
                 if informe_sintesis.get("introduccion"):
-                    texto_informe += informe_sintesis["introduccion"] + "\n\n"
+                    texto_informe += _safe_str(informe_sintesis["introduccion"]) + "\n\n"
                 if informe_sintesis.get("hallazgos_clave"):
-                    texto_informe += "Hallazgos clave:\n" + "\n".join(f"- {h}" for h in informe_sintesis["hallazgos_clave"]) + "\n\n"
+                    texto_informe += "Hallazgos clave:\n" + _safe_str(informe_sintesis["hallazgos_clave"]) + "\n\n"
                 if informe_sintesis.get("analisis_tecnico"):
-                    texto_informe += informe_sintesis["analisis_tecnico"] + "\n\n"
+                    texto_informe += _safe_str(informe_sintesis["analisis_tecnico"]) + "\n\n"
                 if informe_sintesis.get("conclusiones"):
-                    texto_informe += informe_sintesis["conclusiones"] + "\n\n"
+                    texto_informe += _safe_str(informe_sintesis["conclusiones"]) + "\n\n"
                 if informe_sintesis.get("advertencias"):
-                    texto_informe += "Advertencias:\n" + "\n".join(f"- {a}" for a in informe_sintesis["advertencias"])
+                    texto_informe += "Advertencias:\n" + _safe_str(informe_sintesis["advertencias"])
                 st.session_state.audio_texto_completo = texto_informe
 
             # ------------------------------------------------------------------
