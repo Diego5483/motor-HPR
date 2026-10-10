@@ -123,7 +123,7 @@ if input_a_evaluar is not None:
                     st.markdown(f"- {adv}")
             
             # ============================================================
-            # BOTÓN DE REPRODUCCIÓN DE AUDIO
+            # BOTÓN DE REPRODUCCIÓN DE AUDIO (ESTABLE)
             # ============================================================
             st.divider()
             st.subheader("🔊 Reproducción en Voz Alta")
@@ -132,10 +132,13 @@ if input_a_evaluar is not None:
             if "audio_generado" not in st.session_state:
                 st.session_state.audio_generado = False
                 st.session_state.audio_path = None
+                st.session_state.audio_bytes = None
                 st.session_state.audio_texto = None
                 st.session_state.audio_voz = None
                 st.session_state.audio_generando = False
                 st.session_state.audio_error = None
+                st.session_state.audio_duracion = 0
+                st.session_state.audio_tamano = 0
             
             # Construir texto completo del informe para síntesis de voz (solo una vez)
             if "audio_texto_completo" not in st.session_state:
@@ -177,7 +180,7 @@ if input_a_evaluar is not None:
                         key="select_voz_tts"
                     )
                 
-                # Botón para regenerar/limpiar audio
+                # Botón para limpiar audio
                 col_limpiar1, col_limpiar2 = st.columns([1, 3])
                 with col_limpiar1:
                     btn_limpiar = st.button(
@@ -188,6 +191,7 @@ if input_a_evaluar is not None:
                     if btn_limpiar:
                         st.session_state.audio_generado = False
                         st.session_state.audio_path = None
+                        st.session_state.audio_bytes = None
                         st.session_state.audio_texto = None
                         st.session_state.audio_voz = None
                         st.session_state.audio_generando = False
@@ -215,13 +219,16 @@ if input_a_evaluar is not None:
                             voice_synthesizer = crear_voice_synthesizer()
                             resultado_audio = voice_synthesizer.generar_audio_informe(
                                 texto_informe=st.session_state.get("audio_texto_completo", ""),
-                                output_path="temp_informe_audio.wav",
+                                output_path=audio_path,
                                 voz=st.session_state.get("audio_voz", "es-ES-ElviraNeural")
                             )
                             
                             if resultado_audio.get("exito"):
                                 st.session_state.audio_generado = True
                                 st.session_state.audio_path = resultado_audio.get("archivo_audio")
+                                # Cache audio bytes for download
+                                with open(resultado_audio["archivo_audio"], "rb") as f:
+                                    st.session_state.audio_bytes = f.read()
                                 st.session_state.audio_duracion = resultado_audio.get('duracion_estimada', 0)
                                 st.session_state.audio_tamano = resultado_audio.get('tamaño_bytes', 0)
                                 st.session_state.audio_voz = resultado_audio.get('voz_usada', 'es-ES-ElviraNeural')
@@ -246,11 +253,9 @@ if input_a_evaluar is not None:
                         
                         # Ofrecer descarga
                         try:
-                            with open(st.session_state.audio_path, "rb") as f:
-                                audio_bytes = f.read()
                             st.download_button(
                                 label="⬇️ Descargar Audio",
-                                data=st.session_state.get("audio_bytes", open(st.session_state.audio_path, "rb").read()),
+                                data=st.session_state.audio_bytes,
                                 file_name="informe_nexus.wav",
                                 mime="audio/wav",
                                 key="download_audio_btn"
@@ -276,6 +281,29 @@ if input_a_evaluar is not None:
                             st.rerun()
                 else:
                     # Botón para generar audio
+                    col_audio1, col_audio2 = st.columns([1, 3])
+                    with col_audio1:
+                        btn_audio = st.button(
+                            "🔊 Generar Audio del Informe", 
+                            type="primary", 
+                            use_container_width=True,
+                            disabled=st.session_state.get("audio_generando", False),
+                            key="btn_generar_audio_inicial"
+                        )
+                    with col_audio2:
+                        voz_seleccionada = st.selectbox(
+                            "Voz:",
+                            options=["es-ES-ElviraNeural", "es-ES-AlvaroNeural", "es-MX-DaliaNeural", "es-MX-JorgeNeural"],
+                            format_func=lambda x: {
+                                "es-ES-ElviraNeural": "🇪🇸 Elvira (España)",
+                                "es-ES-AlvaroNeural": "🇪🇸 Álvaro (España)",
+                                "es-MX-DaliaNeural": "🇲🇽 Dalia (México)",
+                                "es-MX-JorgeNeural": "🇲🇽 Jorge (México)"
+                            }.get(x, x),
+                            index=0,
+                            key="select_voz_tts_inicial"
+                        )
+                    
                     if btn_audio:
                         # Guardar voz seleccionada y marcar generación en curso
                         st.session_state.audio_voz = voz_seleccionada
@@ -283,12 +311,9 @@ if input_a_evaluar is not None:
                         st.session_state.audio_generando = True
                         st.rerun()
             else:
-                pass  # No action needed if btn_audio not pressed
-            # Para otros tipos de decisión (bloqueo, trigger_confianza, delegacion_multilingue)
-        st.markdown(f"**Decisión:** `{decision}`")
-        st.markdown(f"**Nivel:** `{nivel}`")
-        if override:
-            st.markdown(f"**Override:** `{override}`")
+                st.info("ℹ️ No hay contenido suficiente en el informe para generar audio.")
+        else:
+            st.info("ℹ️ El informe está vacío, no hay contenido para generar audio.")
 
     with tab2:
         # NUEVO: Mostrar resultados de búsqueda externa si existen
