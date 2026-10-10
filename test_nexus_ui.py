@@ -128,23 +128,41 @@ if input_a_evaluar is not None:
             st.divider()
             st.subheader("🔊 Reproducción en Voz Alta")
             
-            # Construir texto completo del informe para síntesis de voz
-            texto_informe = ""
-            if informe_sintesis.get("introduccion"):
-                texto_informe += informe_sintesis["introduccion"] + "\n\n"
-            if informe_sintesis.get("hallazgos_clave"):
-                texto_informe += "Hallazgos clave:\n" + "\n".join(f"- {h}" for h in informe_sintesis["hallazgos_clave"]) + "\n\n"
-            if informe_sintesis.get("analisis_tecnico"):
-                texto_informe += informe_sintesis["analisis_tecnico"] + "\n\n"
-            if informe_sintesis.get("conclusiones"):
-                texto_informe += informe_sintesis["conclusiones"] + "\n\n"
-            if informe_sintesis.get("advertencias"):
-                texto_informe += "Advertencias:\n" + "\n".join(f"- {a}" for a in informe_sintesis["advertencias"])
+            # Inicializar estado de audio en session_state si no existe
+            if "audio_generado" not in st.session_state:
+                st.session_state.audio_generado = False
+                st.session_state.audio_path = None
+                st.session_state.audio_texto = None
+                st.session_state.audio_voz = None
+                st.session_state.audio_generando = False
+                st.session_state.audio_error = None
             
-            if texto_informe.strip():
+            # Construir texto completo del informe para síntesis de voz (solo una vez)
+            if "audio_texto_completo" not in st.session_state:
+                texto_informe = ""
+                if informe_sintesis.get("introduccion"):
+                    texto_informe += informe_sintesis["introduccion"] + "\n\n"
+                if informe_sintesis.get("hallazgos_clave"):
+                    texto_informe += "Hallazgos clave:\n" + "\n".join(f"- {h}" for h in informe_sintesis["hallazgos_clave"]) + "\n\n"
+                if informe_sintesis.get("analisis_tecnico"):
+                    texto_informe += informe_sintesis["analisis_tecnico"] + "\n\n"
+                if informe_sintesis.get("conclusiones"):
+                    texto_informe += informe_sintesis["conclusiones"] + "\n\n"
+                if informe_sintesis.get("advertencias"):
+                    texto_informe += "Advertencias:\n" + "\n".join(f"- {a}" for a in informe_sintesis["advertencias"])
+                st.session_state.audio_texto_completo = texto_informe
+            
+            if st.session_state.get("audio_texto_completo", "").strip():
                 col_audio1, col_audio2 = st.columns([1, 3])
                 with col_audio1:
-                    btn_audio = st.button("🔊 Escuchar Informe en Voz Alta", type="primary", use_container_width=True)
+                    # Botón deshabilitado mientras se genera
+                    btn_audio = st.button(
+                        "🔊 Escuchar Informe en Voz Alta", 
+                        type="primary", 
+                        use_container_width=True,
+                        disabled=st.session_state.get("audio_generando", False),
+                        key="btn_generar_audio"
+                    )
                 with col_audio2:
                     voz_seleccionada = st.selectbox(
                         "Voz:",
@@ -155,61 +173,119 @@ if input_a_evaluar is not None:
                             "es-MX-DaliaNeural": "🇲🇽 Dalia (México)",
                             "es-MX-JorgeNeural": "🇲🇽 Jorge (México)"
                         }.get(x, x),
-                        index=0
+                        index=0,
+                        key="select_voz_tts"
                     )
                 
-                if btn_audio:
+                # Botón para regenerar/limpiar audio
+                col_limpiar1, col_limpiar2 = st.columns([1, 3])
+                with col_limpiar1:
+                    btn_limpiar = st.button(
+                        "🗑️ Limpiar Audio", 
+                        use_container_width=True,
+                        key="btn_limpiar_audio"
+                    )
+                    if btn_limpiar:
+                        st.session_state.audio_generado = False
+                        st.session_state.audio_path = None
+                        st.session_state.audio_texto = None
+                        st.session_state.audio_voz = None
+                        st.session_state.audio_generando = False
+                        st.session_state.audio_error = None
+                        st.rerun()
+                
+                # Manejar generación de audio
+                if st.session_state.get("audio_generando", False):
+                    st.session_state.audio_generando = False  # Reset flag immediately
                     with st.spinner("Generando audio con Edge TTS..."):
-                        from nexus_root.nexus_voice import crear_voice_synthesizer
-                        voice_synthesizer = crear_voice_synthesizer()
-                        
-                        # Crear archivo temporal
-                        import tempfile
-                        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                            audio_path = tmp.name
-                        
-                        # Construir texto completo del informe
-                        texto_completo = ""
-                        if informe_sintesis.get("introduccion"):
-                            texto_completo += informe_sintesis["introduccion"] + "\n\n"
-                        if informe_sintesis.get("hallazgos_clave"):
-                            texto_completo += "Hallazgos clave:\n" + "\n".join(f"- {h}" for h in informe_sintesis["hallazgos_clave"]) + "\n\n"
-                        if informe_sintesis.get("analisis_tecnico"):
-                            texto_completo += informe_sintesis["analisis_tecnico"] + "\n\n"
-                        if informe_sintesis.get("conclusiones"):
-                            texto_completo += informe_sintesis["conclusiones"] + "\n\n"
-                        if informe_sintesis.get("advertencias"):
-                            texto_completo += "Advertencias:\n" + "\n".join(f"- {a}" for a in informe_sintesis["advertencias"])
-                        
-                        # Generar audio
-                        with st.spinner("Generando audio con Edge TTS..."):
+                        try:
+                            import logging
                             from nexus_root.nexus_voice import crear_voice_synthesizer
                             voice_synthesizer = crear_voice_synthesizer()
-                            resultado_audio = voice_synthesizer.generar_audio_informe(
-                                texto_informe=texto_completo,
-                                output_path="temp_informe_audio.wav",
-                                voz=voz_seleccionada
-                            )
-                        
-                        if resultado_audio.get("exito"):
-                            st.success(f"✅ Audio generado ({resultado_audio.get('duracion_estimada', 0):.1f}s, {resultado_audio.get('tamaño_bytes', 0)} bytes)")
-                            st.audio(resultado_audio["archivo_audio"], format="audio/wav")
                             
-                            # Ofrecer descarga
-                            with open(resultado_audio["archivo_audio"], "rb") as f:
+                            # Crear archivo temporal persistente
+                            import tempfile
+                            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                                audio_path = tmp.name
+                            
+                            # Obtener texto completo del informe
+                            texto_completo = st.session_state.get("audio_texto_completo", "")
+                            
+                            # Generar audio
+                            voice_synthesizer = crear_voice_synthesizer()
+                            resultado_audio = voice_synthesizer.generar_audio_informe(
+                                texto_informe=st.session_state.get("audio_texto_completo", ""),
+                                output_path="temp_informe_audio.wav",
+                                voz=st.session_state.get("audio_voz", "es-ES-ElviraNeural")
+                            )
+                            
+                            if resultado_audio.get("exito"):
+                                st.session_state.audio_generado = True
+                                st.session_state.audio_path = resultado_audio.get("archivo_audio")
+                                st.session_state.audio_duracion = resultado_audio.get('duracion_estimada', 0)
+                                st.session_state.audio_tamano = resultado_audio.get('tamaño_bytes', 0)
+                                st.session_state.audio_voz = resultado_audio.get('voz_usada', 'es-ES-ElviraNeural')
+                                st.session_state.audio_error = None
+                            else:
+                                st.session_state.audio_error = resultado_audio.get('error', 'Error desconocido')
+                                st.session_state.audio_generado = False
+                                st.session_state.audio_path = None
+                        except Exception as e:
+                            logging.error(f"Error generando audio: {e}", exc_info=True)
+                            st.session_state.audio_error = f"Error generando audio: {str(e)}"
+                            st.session_state.audio_generado = False
+                            st.session_state.audio_path = None
+                        
+                        st.rerun()
+                
+                # Mostrar resultados de audio si existe
+                if st.session_state.get("audio_generado", False) and st.session_state.get("audio_path"):
+                    if os.path.exists(st.session_state.audio_path):
+                        st.success(f"✅ Audio generado ({st.session_state.get('audio_duracion', 0):.1f}s, {st.session_state.get('audio_tamano', 0)} bytes)")
+                        st.audio(st.session_state.audio_path, format="audio/wav")
+                        
+                        # Ofrecer descarga
+                        try:
+                            with open(st.session_state.audio_path, "rb") as f:
                                 audio_bytes = f.read()
                             st.download_button(
                                 label="⬇️ Descargar Audio",
-                                data=audio_bytes,
+                                data=st.session_state.get("audio_bytes", open(st.session_state.audio_path, "rb").read()),
                                 file_name="informe_nexus.wav",
-                                mime="audio/wav"
+                                mime="audio/wav",
+                                key="download_audio_btn"
                             )
-                        else:
-                            st.error(f"Error generando audio: {resultado_audio.get('error', 'Error desconocido')}")
+                        except Exception as e:
+                            logging.warning(f"No se pudo leer audio para descarga: {e}")
+                            st.download_button(
+                                label="⬇️ Descargar Audio",
+                                data=open(st.session_state.audio_path, "rb").read(),
+                                file_name="informe_nexus.wav",
+                                mime="audio/wav",
+                                key="download_audio_btn_fallback"
+                            )
+                        
+                        # Botón para limpiar
+                        st.button("🗑️ Limpiar Audio", on_click=lambda: setattr(st.session_state, 'audio_generado', False), key="btn_limpiar_audio_2")
+                    
+                    elif st.session_state.get("audio_error"):
+                        st.error(f"Error generando audio: {st.session_state.audio_error}")
+                        if st.button("🔄 Reintentar", key="btn_reintentar_audio"):
+                            st.session_state.audio_error = None
+                            st.session_state.audio_generado = False
+                            st.rerun()
                 else:
-                    st.info("ℹ️ No hay contenido suficiente en el informe para generar audio.")
+                    # Botón para generar audio
+                    if btn_audio:
+                        # Guardar voz seleccionada y marcar generación en curso
+                        st.session_state.audio_voz = voz_seleccionada
+                        st.session_state.audio_texto = st.session_state.get("audio_texto_completo", "")
+                        st.session_state.audio_generando = True
+                        st.rerun()
             else:
-                st.info("ℹ️ El informe está vacío, no hay contenido para generar audio.")
+                st.info("ℹ️ No hay contenido suficiente en el informe para generar audio.")
+        else:
+            st.info("ℹ️ El informe está vacío, no hay contenido para generar audio.")
         else:
             # Para otros tipos de decisión (bloqueo, trigger_confianza, delegacion_multilingue)
             st.info("ℹ️ Esta decisión no genera un informe de síntesis completo.")
