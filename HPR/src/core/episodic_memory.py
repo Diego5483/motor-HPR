@@ -519,13 +519,47 @@ class ReasoningConMemoria:
                 entidades=[h["metadatos"].get("entidad", "")] if h.get("metadatos") else []
             )
         
+        # Mapear hipótesis por ID para enriquecer verificaciones
+        hipotesis_map = {h["id"]: h for h in resultado["hipotesis"]}
+        
+        # Claves de metadatos que NO son entidades (filtrar)
+        CLAVES_METADATOS_NO_ENTIDADES = {
+            "regla", "arch", "tech", "causa", "efecto", "entidad", "fuentes",
+            "requerido", "requisito", "patron_causal", "coocurrencia_arch_tech",
+            "consenso_multi_fuente", "patron_restriccion"
+        }
+        
         for v in resultado["verificaciones"]:
+            # Enriquecer verificación con claim y entidades de la hipótesis
+            hyp_id = v.get("hipotesis_id", "")
+            hyp = hipotesis_map.get(hyp_id, {})
+            v_enriched = dict(v)
+            v_enriched["claim"] = hyp.get("claim", "")
+            
+            # Extraer entidades de metadatos de la hipótesis (filtrando claves técnicas)
+            entidades_hyp = []
+            meta = hyp.get("metadatos", {})
+            if meta:
+                for key, val in meta.items():
+                    if key in CLAVES_METADATOS_NO_ENTIDADES:
+                        continue
+                    if isinstance(val, str) and val:
+                        if not re.match(r'^[PH]\d{4}$', val):
+                            entidades_hyp.append(val)
+                    elif isinstance(val, list):
+                        for item in val:
+                            if isinstance(item, str) and item and not re.match(r'^[PH]\d{4}$', item):
+                                entidades_hyp.append(item)
+            
+            v_enriched["claim"] = hyp.get("claim", "")
+            v_enriched["entidades"] = list(set(entidades_hyp))
+            
             self.memoria.guardar_episodio(
                 tipo=TipoEpisodio.VERIFICACION,
                 sesion_id=self.sesion_id,
                 usuario_id=self.usuario_id,
-                contenido=v,
-                entidades=v.get("entidades", [])
+                contenido=v_enriched,
+                entidades=v_enriched["entidades"]
             )
         
         for c in resultado["conclusiones"]:

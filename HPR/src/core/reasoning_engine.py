@@ -213,9 +213,13 @@ class MotorRazonamientoSuperior:
     # 2. GENERACIÓN DE HIPÓTESIS (Reglas de Inferencia)
     # ============================================================
     
-    def generar_hipotesis(self) -> List[Hipotesis]:
+    def generar_hipotesis(self, hipotesis_existentes: Optional[List[Hipotesis]] = None) -> List[Hipotesis]:
         """
         Genera hipótesis aplicando reglas de inferencia sobre premisas.
+        
+        Args:
+            hipotesis_existentes: Lista de hipótesis ya generadas para evitar duplicados.
+                                  Se comparan por claim similar y premisas_ids.
         
         Reglas:
         - Co-ocurrencia arquitectura + tecnología → Hipótesis IMPLICACION
@@ -225,6 +229,23 @@ class MotorRazonamientoSuperior:
         - Tecnología A requiere B (patrón "requiere") → Hipótesis RESTRICCION
         """
         hipotesis_nuevas = []
+        
+        # Construir set de claims existentes para deduplicación
+        claims_existentes = set()
+        premisas_ids_existentes = set()
+        if hipotesis_existentes:
+            for h in hipotesis_existentes:
+                claims_existentes.add(h.claim.lower().strip())
+                premisas_ids_existentes.update(h.premisas_ids)
+        
+        def _es_duplicada(claim: str, premisas_ids: List[str]) -> bool:
+            claim_lower = claim.lower().strip()
+            if claim_lower in claims_existentes:
+                return True
+            # También verificar overlap significativo de premisas
+            if set(premisas_ids) & premisas_ids_existentes:
+                return True
+            return False
         
         # Agrupar premisas por entidad
         por_entidad = defaultdict(list)
@@ -237,14 +258,14 @@ class MotorRazonamientoSuperior:
             for tech_premisas in [p for p in self._premisas.values() if p.tipo in ("tecnologia", "caracteristica")]:
                 if self._coocurren_en_fuente(arch_premisas, tech_premisas):
                     h = self._crear_hipotesis_implicacion(arch_premisas, tech_premisas)
-                    if h:
+                    if h and not _es_duplicada(h.claim, h.premisas_ids):
                         hipotesis_nuevas.append(h)
         
         # Regla 2: Especificación con patrón causal → CAUSAL
         for esp in [p for p in self._premisas.values() if p.tipo == "especificacion"]:
             if any(re.search(pat, esp.proposicion, re.IGNORECASE) for pat in self.PATRONES_CAUSAL):
                 h = self._crear_hipotesis_causal(esp)
-                if h:
+                if h and not _es_duplicada(h.claim, h.premisas_ids):
                     hipotesis_nuevas.append(h)
         
         # Regla 3: Múltiples fuentes para misma entidad → CLASIFICATORIA
@@ -252,14 +273,14 @@ class MotorRazonamientoSuperior:
             fuentes = set(p.fuente for p in premisas)
             if len(fuentes) >= 2 and len(premisas) >= 2:
                 h = self._crear_hipotesis_clasificatoria(entidad, premisas)
-                if h:
+                if h and not _es_duplicada(h.claim, h.premisas_ids):
                     hipotesis_nuevas.append(h)
         
         # Regla 4: Patrón "requiere/necesita" en especificación → RESTRICCION
         for esp in [p for p in self._premisas.values() if p.tipo == "especificacion"]:
             if any(re.search(pat, esp.proposicion, re.IGNORECASE) for pat in self.PATRONES_RESTRICCION):
                 h = self._crear_hipotesis_restriccion(esp)
-                if h:
+                if h and not _es_duplicada(h.claim, h.premisas_ids):
                     hipotesis_nuevas.append(h)
         
         # Registrar
@@ -643,10 +664,16 @@ class MotorRazonamientoSuperior:
     def ejecutar_pipeline_completo(
         self, 
         hallazgos: List[Any], 
-        corpus: str
+        corpus: str,
+        hipotesis_existentes: Optional[List[Hipotesis]] = None
     ) -> Dict[str, Any]:
         """
         Ejecuta el pipeline completo: Premisas → Hipótesis → Verificación → Conclusiones.
+        
+        Args:
+            hallazgos: Hallazgos del DeepSynthesizer
+            corpus: Corpus de evidencia
+            hipotesis_existentes: Hipótesis ya generadas en iteraciones previas (para deduplicación)
         
         Returns:
             Dict con todas las etapas para trazabilidad
@@ -656,8 +683,8 @@ class MotorRazonamientoSuperior:
         # 1. Premisas
         premisas = self.recibir_hallazgos(hallazgos, corpus)
         
-        # 2. Hipótesis
-        hipotesis = self.generar_hipotesis()
+        # 2. Hipótesis (con deduplicación contra iteraciones previas)
+        hipotesis = self.generar_hipotesis(hipotesis_existentes=hipotesis_existentes)
         
         # 3. Verificación
         verificaciones = self.verificar_hipotesis()
