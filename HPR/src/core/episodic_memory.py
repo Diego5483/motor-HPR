@@ -32,6 +32,7 @@ class TipoEpisodio(Enum):
     CONCLUSION = "conclusion"
     CONSULTA = "consulta"          # Consulta original del usuario
     HALLAZGO_BRUTO = "hallazgo_bruto"  # HallazgoTecnico del DeepSynthesizer
+    SINTESIS_CAUSAL = "sintesis_causal"  # Síntesis causal (Pilar 4)
 
 
 @dataclass
