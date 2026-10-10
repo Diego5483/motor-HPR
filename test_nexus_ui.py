@@ -2,6 +2,7 @@ import streamlit as st
 import logging
 import sys
 import os
+import tempfile
 
 # Añadir el directorio HPR/src al path para importaciones directas
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "HPR", "src"))
@@ -120,6 +121,95 @@ if input_a_evaluar is not None:
                 st.markdown("### Advertencias")
                 for adv in advertencias:
                     st.markdown(f"- {adv}")
+            
+            # ============================================================
+            # BOTÓN DE REPRODUCCIÓN DE AUDIO
+            # ============================================================
+            st.divider()
+            st.subheader("🔊 Reproducción en Voz Alta")
+            
+            # Construir texto completo del informe para síntesis de voz
+            texto_informe = ""
+            if informe_sintesis.get("introduccion"):
+                texto_informe += informe_sintesis["introduccion"] + "\n\n"
+            if informe_sintesis.get("hallazgos_clave"):
+                texto_informe += "Hallazgos clave:\n" + "\n".join(f"- {h}" for h in informe_sintesis["hallazgos_clave"]) + "\n\n"
+            if informe_sintesis.get("analisis_tecnico"):
+                texto_informe += informe_sintesis["analisis_tecnico"] + "\n\n"
+            if informe_sintesis.get("conclusiones"):
+                texto_informe += informe_sintesis["conclusiones"] + "\n\n"
+            if informe_sintesis.get("advertencias"):
+                texto_informe += "Advertencias:\n" + "\n".join(f"- {a}" for a in informe_sintesis["advertencias"])
+            
+            if texto_informe.strip():
+                col_audio1, col_audio2 = st.columns([1, 3])
+                with col_audio1:
+                    btn_audio = st.button("🔊 Escuchar Informe en Voz Alta", type="primary", use_container_width=True)
+                with col_audio2:
+                    voz_seleccionada = st.selectbox(
+                        "Voz:",
+                        options=["es-ES-ElviraNeural", "es-ES-AlvaroNeural", "es-MX-DaliaNeural", "es-MX-JorgeNeural"],
+                        format_func=lambda x: {
+                            "es-ES-ElviraNeural": "🇪🇸 Elvira (España)",
+                            "es-ES-AlvaroNeural": "🇪🇸 Álvaro (España)",
+                            "es-MX-DaliaNeural": "🇲🇽 Dalia (México)",
+                            "es-MX-JorgeNeural": "🇲🇽 Jorge (México)"
+                        }.get(x, x),
+                        index=0
+                    )
+                
+                if btn_audio:
+                    with st.spinner("Generando audio con Edge TTS..."):
+                        from nexus_root.nexus_voice import crear_voice_synthesizer
+                        voice_synthesizer = crear_voice_synthesizer()
+                        
+                        # Crear archivo temporal
+                        import tempfile
+                        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                            audio_path = tmp.name
+                        
+                        # Construir texto completo del informe
+                        texto_completo = ""
+                        if informe_sintesis.get("introduccion"):
+                            texto_completo += informe_sintesis["introduccion"] + "\n\n"
+                        if informe_sintesis.get("hallazgos_clave"):
+                            texto_completo += "Hallazgos clave:\n" + "\n".join(f"- {h}" for h in informe_sintesis["hallazgos_clave"]) + "\n\n"
+                        if informe_sintesis.get("analisis_tecnico"):
+                            texto_completo += informe_sintesis["analisis_tecnico"] + "\n\n"
+                        if informe_sintesis.get("conclusiones"):
+                            texto_completo += informe_sintesis["conclusiones"] + "\n\n"
+                        if informe_sintesis.get("advertencias"):
+                            texto_completo += "Advertencias:\n" + "\n".join(f"- {a}" for a in informe_sintesis["advertencias"])
+                        
+                        # Generar audio
+                        with st.spinner("Generando audio con Edge TTS..."):
+                            from nexus_root.nexus_voice import crear_voice_synthesizer
+                            voice_synthesizer = crear_voice_synthesizer()
+                            resultado_audio = voice_synthesizer.generar_audio_informe(
+                                texto_informe=texto_completo,
+                                output_path="temp_informe_audio.wav",
+                                voz=voz_seleccionada
+                            )
+                        
+                        if resultado_audio.get("exito"):
+                            st.success(f"✅ Audio generado ({resultado_audio.get('duracion_estimada', 0):.1f}s, {resultado_audio.get('tamaño_bytes', 0)} bytes)")
+                            st.audio(resultado_audio["archivo_audio"], format="audio/wav")
+                            
+                            # Ofrecer descarga
+                            with open(resultado_audio["archivo_audio"], "rb") as f:
+                                audio_bytes = f.read()
+                            st.download_button(
+                                label="⬇️ Descargar Audio",
+                                data=audio_bytes,
+                                file_name="informe_nexus.wav",
+                                mime="audio/wav"
+                            )
+                        else:
+                            st.error(f"Error generando audio: {resultado_audio.get('error', 'Error desconocido')}")
+                else:
+                    st.info("ℹ️ No hay contenido suficiente en el informe para generar audio.")
+            else:
+                st.info("ℹ️ El informe está vacío, no hay contenido para generar audio.")
         else:
             # Para otros tipos de decisión (bloqueo, trigger_confianza, delegacion_multilingue)
             st.info("ℹ️ Esta decisión no genera un informe de síntesis completo.")

@@ -188,6 +188,11 @@ class NexusSynthesizer:
         advertencias = self._generar_advertencias(nivel_confianza, score_final)
         
         # Metadata de fuentes
+        metricas = evaluacion_global.get("metricas", {})
+        score_seguridad = evaluacion_global.get("score_seguridad", 0.0)
+        score_calidad = evaluacion_global.get("score_calidad", 0.0)
+        clasificacion_seguridad = evaluacion_global.get("clasificacion_seguridad", "DESCONOCIDA")
+        
         metadata_fuentes = {
             "score_final": round(score_final, 2),
             "score_seguridad": round(score_seguridad, 2),
@@ -369,6 +374,47 @@ class NexusSynthesizer:
         )
         
         return advertencias
+
+
+# ============================================================
+# MÉTODO DE GENERACIÓN DE AUDIO
+# ============================================================
+
+    def generar_audio_desde_informe(
+        self, 
+        informe_texto: str, 
+        output_path: str = "temp_informe_audio.wav",
+        voz: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Genera audio a partir del informe de síntesis usando el sintetizador de voz.
+        
+        Args:
+            informe_texto: Texto completo del informe de síntesis
+            output_path: Ruta del archivo de audio de salida
+            voz: Voz a usar (opcional)
+            
+        Returns:
+            Dict con resultado de la síntesis de voz
+        """
+        try:
+            from nexus_root.nexus_voice import crear_voice_synthesizer
+            voice_synthesizer = crear_voice_synthesizer()
+            return voice_synthesizer.generar_audio_informe(
+                texto_informe=informe_texto,
+                output_path=output_path,
+                voz=voz
+            )
+        except Exception as e:
+            self.logger.error(f"Error generando audio del informe: {e}")
+            return {
+                "exito": False,
+                "archivo_audio": "",
+                "duracion_estimada": 0.0,
+                "tamaño_bytes": 0,
+                "error": f"Error en síntesis de voz: {str(e)}",
+                "voz_usada": "es-ES-ElviraNeural"
+            }
 
 
 # ============================================================

@@ -6,6 +6,7 @@ from .sanitizer import InputSanitizer
 from .router import NexusRouter, crear_nexus_router
 from .executor import ExternalToolExecutor, ResultadoBusqueda, crear_executor
 from .synthesizer import NexusSynthesizer, crear_synthesizer
+from .nexus_voice import NexusVoiceSynthesizer, crear_voice_synthesizer, generar_audio_informe
 
 __all__ = [
     "NexusRootPrecedenceEngine",
@@ -17,4 +18,7 @@ __all__ = [
     "crear_executor",
     "NexusSynthesizer",
     "crear_synthesizer",
+    "NexusVoiceSynthesizer",
+    "crear_voice_synthesizer",
+    "generar_audio_informe",
 ]
