@@ -283,16 +283,12 @@ if input_a_evaluar is not None:
                         st.session_state.audio_generando = True
                         st.rerun()
             else:
-                st.info("ℹ️ No hay contenido suficiente en el informe para generar audio.")
-        else:
-            st.info("ℹ️ El informe está vacío, no hay contenido para generar audio.")
-        else:
+                pass  # No action needed if btn_audio not pressed
             # Para otros tipos de decisión (bloqueo, trigger_confianza, delegacion_multilingue)
-            st.info("ℹ️ Esta decisión no genera un informe de síntesis completo.")
-            st.markdown(f"**Decisión:** `{decision}`")
-            st.markdown(f"**Nivel:** `{nivel}`")
-            if override:
-                st.markdown(f"**Override:** `{override}`")
+        st.markdown(f"**Decisión:** `{decision}`")
+        st.markdown(f"**Nivel:** `{nivel}`")
+        if override:
+            st.markdown(f"**Override:** `{override}`")
 
     with tab2:
         # NUEVO: Mostrar resultados de búsqueda externa si existen
