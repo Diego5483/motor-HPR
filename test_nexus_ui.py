@@ -25,12 +25,12 @@ if "router" not in st.session_state:
 
 st.subheader("Ingreso de Comandos")
 
-# Selector de Triggers rápidos (Catálogo soportado por backend)
+# Selector de Triggers rápidos (Catálogo soportado por backend - Opción A validada)
 TRIGGERS_CATALOGO = {
-    "@web_search": "🔍 Búsqueda Web - Consulta externa en DuckDuckGo",
-    "@nivel1": "⚙️ Pipeline Operativo - Procesamiento interno Nivel 1",
-    "@hpr_confianza": "🔐 Validación Confianza - Prioridad Alta (Seguridad)",
-    "": "💬 Lenguaje Natural - Auto-detección multilingüe (Base)"
+    "@web_search": "🔍 Búsqueda Web - DuckDuckGo (Peso: 10)",
+    "@nivel1": "⚙️ Pipeline Operativo Nivel 1 (Peso: 5)",
+    "@hpr_confianza": "🔒 Validación Confianza - Prioridad Alta",
+    "": "💬 Lenguaje Natural - Auto-detección Base"
 }
 
 col_trigger, col_input = st.columns([1, 4])
