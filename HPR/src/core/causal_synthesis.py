@@ -1,7 +1,7 @@
-"""Síntesis Causal - Pilar 4 Fase Beta.
+"""Síntesis Causal - Fase 3: Nivel 3 Síntesis Causal con Plantillas Lógicas.
 
 Conecta hipótesis verificadas en grafo causa-efecto y genera
-narrativas explicativas encadenadas.
+narrativas explicativas encadenadas usando plantillas causales.
 
 Fuentes:
 - memoria.get_conclusiones_sesion()
@@ -18,6 +18,13 @@ from collections import defaultdict, deque
 logger = logging.getLogger(__name__)
 
 from core.episodic_memory import TipoEpisodio
+from core.causal_templates import (
+    TipoRelacionCausal, 
+    CausalTemplates, 
+    GeneradorNarrativaCausalAvanzado,
+    crear_causal_templates,
+    crear_generador_narrativa_avanzado
+)
 
 
 class TipoRelacionCausal(Enum):
@@ -395,26 +402,19 @@ class ConstructorGrafoCausal:
         return [c for c in cadenas if len(c.nodos) >= 2]
     
     def _crear_cadena_desde_camino(self, nodo_ids: List[str], aristas: List[AristaCausal], nodos_dict: Dict[str, NodoCausal]) -> CadenaCausal:
-        """Construye objeto CadenaCausal desde path."""
-        # Generar narrativa
+        """Construye objeto CadenaCausal desde path usando plantillas causales."""
+        # Generar narrativa usando plantillas
         partes = []
         for i, a in enumerate(aristas):
             n_origen = nodos_dict.get(a.origen)
             n_destino = nodos_dict.get(a.destino)
             if n_origen and n_destino:
-                verbos = {
-                    TipoRelacionCausal.CAUSA_DIRECTA: "causa",
-                    TipoRelacionCausal.HABILITADOR: "habilita",
-                    TipoRelacionCausal.IMPLICA: "implica",
-                    TipoRelacionCausal.REQUISITO: "requiere",
-                    TipoRelacionCausal.CORRELACION: "correlaciona con",
-                    TipoRelacionCausal.CONSENSO: "confirma"
-                }
-                verbo = verbos.get(a.tipo, "relaciona con")
+                # Usar conector del template
+                conector = self._obtener_conector_para_tipo(a.tipo)
                 if i == 0:
-                    partes.append(f"{n_origen.claim} {verbo} {n_destino.claim}")
+                    partes.append(f"{n_origen.claim} {conector} {n_destino.claim}")
                 else:
-                    partes.append(f"que {verbo} {n_destino.claim}")
+                    partes.append(f"que {conector} {n_destino.claim}")
         
         claim_compuesto = " ".join(partes) if partes else f"Cadena: {' → '.join(nodo_ids)}"
         
@@ -434,6 +434,18 @@ class ConstructorGrafoCausal:
             fuerza_cadena=round(fuerza, 2),
             entidades_clave=list(entidades)
         )
+    
+    def _obtener_conector_para_tipo(self, tipo: TipoRelacionCausal) -> str:
+        """Obtiene conector de ejemplo para un tipo de relación usando templates."""
+        conectores = {
+            TipoRelacionCausal.CAUSA_DIRECTA: "causa",
+            TipoRelacionCausal.HABILITADOR: "habilita",
+            TipoRelacionCausal.IMPLICA: "implica",
+            TipoRelacionCausal.REQUISITO: "requiere",
+            TipoRelacionCausal.CORRELACION: "correlaciona con",
+            TipoRelacionCausal.CONSENSO: "confirma"
+        }
+        return conectores.get(tipo, "relaciona con")
     
     def _contar_por_fuerza(self, nodos: Dict) -> Dict[str, int]:
         return {f: sum(1 for n in nodos.values() if n.fuerza == f) for f in ["fuerte", "moderada", "debil", "especulativa"]}
