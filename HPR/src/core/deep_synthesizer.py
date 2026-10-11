@@ -9,6 +9,8 @@ from dataclasses import dataclass, field
 import re
 import logging
 
+from core.structural_threading import Nivel2_EnhebradoEstructural, GrafoConsistencia
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,6 +34,7 @@ class InformeProfundo:
     conclusiones: List[str]
     advertencias: List[str]
     metricas_procesamiento: Dict[str, Any]
+    grafo_consistencia: Optional[Dict[str, Any]] = None
 
 
 class DeepSynthesizer:
@@ -53,6 +56,8 @@ class DeepSynthesizer:
     def __init__(self, min_confianza: float = 0.3):
         self.min_confianza = min_confianza
         self._cache_entidades: Dict[str, List[str]] = {}
+        # Nivel 2: Enhebrado Estructural (Fase 2)
+        self.nivel2_enhebrado = Nivel2_EnhebradoEstructural(min_confianza=min_confianza)
 
     def procesar_resultados(
         self,
@@ -80,7 +85,10 @@ class DeepSynthesizer:
         # 3. Filtrar por confianza mínima
         hallazgos_filtrados = [h for h in hallazgos if h.confianza >= self.min_confianza]
         
-        # 4. Generar secciones del informe
+        # 4. Nivel 2: Enhebrado Estructural - Grafo de Consistencia
+        grafo_consistencia = self.nivel2_enhebrado.construir_grafo(hallazgos_filtrados)
+        
+        # 4. Generar secciones del informe (usando grafo de consistencia)
         introduccion = self._generar_introduccion(query, hallazgos_filtrados, len(resultados))
         analisis = self._generar_analisis(query, hallazgos_filtrados, corpus)
         conclusiones = self._generar_conclusiones(query, hallazgos_filtrados)
@@ -99,7 +107,8 @@ class DeepSynthesizer:
                 "hallazgos_extraidos": len(hallazgos),
                 "hallazgos_filtrados": len(hallazgos_filtrados),
                 "fuentes_unicas": len(set(r.get("fuente", "") for r in resultados)),
-            }
+            },
+            grafo_consistencia=grafo_consistencia.to_dict() if grafo_consistencia else None
         )
 
     def _construir_corpus(self, resultados: List[Dict[str, Any]]) -> str:
