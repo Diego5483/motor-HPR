@@ -24,10 +24,34 @@ if "router" not in st.session_state:
         st.success("¡Nexus Router ensamblado y listo!")
 
 st.subheader("Ingreso de Comandos")
-entrada_usuario = st.text_input(
-    "Escribe un prompt para probar la cadena de responsabilidad:",
-    placeholder="Ej: @web_search últimas noticias sobre tecnología"
-)
+
+# Selector de Triggers rápidos (Catálogo soportado por backend)
+TRIGGERS_CATALOGO = {
+    "@web_search": "🔍 Búsqueda Web - Consulta externa en DuckDuckGo",
+    "@nivel1": "⚙️ Pipeline Operativo - Procesamiento interno Nivel 1",
+    "@hpr_confianza": "🔐 Validación Confianza - Prioridad Alta (Seguridad)",
+    "": "💬 Lenguaje Natural - Auto-detección multilingüe (Base)"
+}
+
+col_trigger, col_input = st.columns([1, 4])
+with col_trigger:
+    trigger_seleccionado = st.selectbox(
+        "Trigger:",
+        options=list(TRIGGERS_CATALOGO.keys()),
+        format_func=lambda x: TRIGGERS_CATALOGO[x],
+        key="trigger_selector",
+        help="Selecciona un trigger del catálogo soportado por el backend"
+    )
+
+with col_input:
+    entrada_usuario = st.text_input(
+        "Prompt:",
+        placeholder="Ej: últimas noticias sobre tecnología (se combinará con el trigger seleccionado)",
+        key="prompt_input"
+    )
+
+# Combinar trigger seleccionado con entrada del usuario
+entrada_completa = f"{trigger_seleccionado} {entrada_usuario}".strip() if trigger_seleccionado else entrada_usuario
 
 col1, col2 = st.columns([1, 5])
 with col1:
@@ -36,8 +60,8 @@ with col2:
     btn_vacio = st.button("Simular Input Vacío (Probar Max Priority)")
 
 input_a_evaluar = None
-if btn_probar and entrada_usuario:
-    input_a_evaluar = entrada_usuario
+if btn_probar and entrada_completa:
+    input_a_evaluar = entrada_completa
 elif btn_vacio:
     input_a_evaluar = ""
 
