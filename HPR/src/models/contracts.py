@@ -132,6 +132,164 @@ class StructuredResult(BaseModel):
 
 
 # =============================================================================
+# FASE 6: GESTOR DE MEMORIA Y GRAFO DE SESIÓN CONVERSACIONAL
+# =============================================================================
+
+class TurnRole(str, Enum):
+    """Roles en un turno conversacional."""
+    USER = "user"           # Entrada del operador/usuario
+    ASSISTANT = "assistant" # Respuesta del asistente/agente
+    SYSTEM = "system"       # Mensajes de sistema/control
+
+
+class TurnType(str, Enum):
+    """Tipos de turno conversacional."""
+    QUERY = "query"                 # Consulta de información
+    TASK = "task"                   # Solicitud de ejecución de tarea
+    CLARIFICATION = "clarification" # Solicitud de aclaración
+    FEEDBACK = "feedback"           # Retroalimentación/corrección
+    COMMAND = "command"             # Comando de control del sistema
+
+
+class TurnStatus(str, Enum):
+    """Estados de un turno conversacional."""
+    PENDING = "pending"       # En procesamiento
+    COMPLETED = "completed"   # Completado exitosamente
+    FAILED = "failed"         # Falló con error
+    PARTIAL = "partial"       # Completado parcialmente
+
+
+class ConversationTurn(BaseModel):
+    """
+    Un turno individual en la conversación.
+    
+    Representa una interacción atómica entre usuario y asistente,
+    con trazabilidad completa a evidencia y evaluaciones.
+    """
+    id: UUID = Field(default_factory=uuid4, description="Identificador único del turno")
+    session_id: UUID = Field(..., description="ID de la sesión a la que pertenece")
+    turn_number: int = Field(..., ge=1, description="Número ordinal del turno en la sesión")
+    role: TurnRole = Field(..., description="Rol del emisor")
+    turn_type: TurnType = Field(..., description="Tipo de turno")
+    status: TurnStatus = Field(default=TurnStatus.PENDING, description="Estado del turno")
+    
+    # Contenido del turno
+    content: str = Field(..., min_length=1, description="Contenido textual del turno")
+    
+    # Trazabilidad a evidencia y evaluaciones (FASE 5)
+    referenced_evidence_ids: list[UUID] = Field(
+        default_factory=list, description="IDs de evidencia referenciada en este turno"
+    )
+    claim_evaluation_ids: list[UUID] = Field(
+        default_factory=list, description="IDs de evaluaciones de afirmaciones generadas en este turno"
+    )
+    structured_result_id: Optional[UUID] = Field(
+        None, description="ID del resultado estructurado generado en este turno"
+    )
+    
+    # Metadatos de ejecución
+    tokens_used: Optional[int] = Field(None, ge=0, description="Tokens consumidos en este turno")
+    latency_ms: Optional[int] = Field(None, ge=0, description="Latencia de procesamiento en ms")
+    error_message: Optional[str] = Field(None, description="Mensaje de error si falló")
+    
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp de creación")
+    completed_at: Optional[datetime] = Field(None, description="Timestamp de finalización")
+
+
+class ReferenceType(str, Enum):
+    """Tipos de referencias entre turnos para desambiguación."""
+    EXPLICIT = "explicit"         # Referencia explícita ("lo anterior", "eso")
+    IMPLICIT = "implicit"         # Referencia implícita (contexto)
+    ANAPHORIC = "anaphoric"       # Referencia anafórica (pronombres)
+    CATAcPHORIC = "cataphoric"    # Referencia catafórica (referencia forward)
+
+
+class TurnReference(BaseModel):
+    """
+    Referencia entre turnos para desambiguación y enlace determinista.
+    
+    Permite rastrear cómo un turno referencia contenido de turnos previos,
+    esencial para la coherencia conversacional y la trazabilidad.
+    """
+    id: UUID = Field(default_factory=uuid4, description="Identificador único de la referencia")
+    source_turn_id: UUID = Field(..., description="ID del turno que hace la referencia")
+    target_turn_id: UUID = Field(..., description="ID del turno referenciado")
+    reference_type: ReferenceType = Field(..., description="Tipo de referencia")
+    reference_text: str = Field(..., min_length=1, description="Texto de la referencia en el turno origen")
+    resolved_content: Optional[str] = Field(None, description="Contenido resuelto de la referencia")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confianza en la resolución de la referencia")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp de creación")
+
+
+class SessionStatus(str, Enum):
+    """Estados de una sesión conversacional."""
+    ACTIVE = "active"           # Sesión activa
+    PAUSED = "paused"           # Sesión pausada
+    COMPLETED = "completed"     # Sesión completada
+    ARCHIVED = "archived"       # Sesión archivada
+    ERROR = "error"             # Sesión con error crítico
+
+
+class ConversationSession(BaseModel):
+    """
+    Sesión conversacional completa con grafo de turnos y referencias.
+    
+    Mantiene el estado completo de una conversación, incluyendo el historial
+    de turnos, el grafo de referencias entre turnos, y el estado de tareas
+    delegadas al motor de razonamiento.
+    """
+    id: UUID = Field(default_factory=uuid4, description="Identificador único de la sesión")
+    status: SessionStatus = Field(default=SessionStatus.ACTIVE, description="Estado de la sesión")
+    
+    # Metadatos de la sesión
+    title: Optional[str] = Field(None, description="Título descriptivo de la sesión")
+    description: Optional[str] = Field(None, description="Descripción detallada")
+    tags: list[str] = Field(default_factory=list, description="Etiquetas para clasificación")
+    
+    # Contexto de la sesión
+    initial_query: Optional[str] = Field(None, description="Consulta inicial que inició la sesión")
+    context_summary: Optional[str] = Field(None, description="Resumen del contexto acumulado")
+    
+    # Grafo de turnos y referencias
+    turns: list[ConversationTurn] = Field(default_factory=list, description="Historial de turnos")
+    references: list[TurnReference] = Field(default_factory=list, description="Grafo de referencias entre turnos")
+    
+    # Estado de tareas delegadas
+    active_task_ids: list[UUID] = Field(default_factory=list, description="IDs de tareas activas")
+    completed_task_ids: list[UUID] = Field(default_factory=list, description="IDs de tareas completadas")
+    
+    # Métricas de la sesión
+    total_turns: int = Field(default=0, ge=0, description="Total de turnos en la sesión")
+    total_tokens: int = Field(default=0, ge=0, description="Total de tokens consumidos")
+    total_latency_ms: int = Field(default=0, ge=0, description="Latencia total acumulada en ms")
+    
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp de creación")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="Timestamp de última actualización")
+    completed_at: Optional[datetime] = Field(None, description="Timestamp de finalización")
+    
+    # Configuración
+    max_turns: int = Field(default=100, ge=1, description="Límite máximo de turnos por sesión")
+    max_tokens: int = Field(default=8000, ge=1, description="Límite de tokens por sesión")
+
+
+class SessionContext(BaseModel):
+    """
+    Contexto actual de la sesión para toma de decisiones.
+    
+    Proporciona una vista consolidada del estado actual para el motor de decisión.
+    """
+    session_id: UUID = Field(..., description="ID de la sesión")
+    current_turn_number: int = Field(..., ge=1, description="Número del turno actual")
+    last_user_turn: Optional[ConversationTurn] = Field(None, description="Último turno del usuario")
+    last_assistant_turn: Optional[ConversationTurn] = Field(None, description="Último turno del asistente")
+    pending_references: list[TurnReference] = Field(default_factory=list, description="Referencias pendientes de resolver")
+    active_topics: list[str] = Field(default_factory=list, description="Temas activos en la conversación")
+    unresolved_ambiguities: list[str] = Field(default_factory=list, description="Ambiguedades pendientes de resolver")
+
+
+# =============================================================================
 # CONTRATOS EXISTENTES (MANTENIDOS PARA COMPATIBILIDAD)
 # =============================================================================
 

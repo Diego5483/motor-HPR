@@ -7,7 +7,7 @@ aserciones, no por inspección (P1).
 import pytest
 from pydantic import ValidationError
 
-from src.models.contracts import (
+from models.contracts import (
     IDENTIDAD_DETERMINISTA,
     CategoriaConsulta,
     EstadoPipeline,
