@@ -13,6 +13,182 @@ from nexus_root import crear_nexus_router
 
 logging.basicConfig(level=logging.INFO)
 
+# ============================================================================
+# FRAGMENTO ATÓMICO DE AUDIO — Reactividad nativa sin st.rerun manual
+# Debe definirse ANTES de ser invocado en el flujo principal (línea ~180)
+# ============================================================================
+@st.fragment
+def _render_audio_fragment(texto_informe: str) -> None:
+    """
+    Fragmento de Streamlit para renderizado atómico del reproductor de audio.
+    
+    Los fragments se re-ejecutan independientemente del script principal,
+    permitiendo actualizaciones de UI reactivas (botones, selectbox, audio)
+    sin recargar toda la página.
+    """
+    import logging
+    from nexus_root.nexus_voice import crear_voice_synthesizer
+    import tempfile
+    
+    VOCES_DISPONIBLES = {
+        "es-ES-ElviraNeural": "🇪🇸 Elvira (España)",
+        "es-ES-AlvaroNeural": "🇪🇸 Álvaro (España)",
+        "es-MX-DaliaNeural": "🇲🇽 Dalia (México)",
+        "es-MX-JorgeNeural": "🇲🇽 Jorge (México)"
+    }
+    
+    # Inicialización de estado del fragment (persistente entre re-ejecuciones del fragment)
+    if "audio_generado" not in st.session_state:
+        st.session_state.audio_generado = False
+        st.session_state.audio_bytes = None
+        st.session_state.audio_error = None
+        st.session_state.audio_duracion = 0
+        st.session_state.audio_tamano = 0
+        st.session_state.audio_voz = None
+        st.session_state.audio_generando = False
+    
+    if not texto_informe or not texto_informe.strip():
+        st.info("ℹ️ No hay contenido suficiente en el informe para generar audio.")
+        return
+    
+    col_audio1, col_audio2 = st.columns([1, 3])
+    
+    with col_audio1:
+        generando = st.session_state.get("audio_generando", False)
+        
+        if not st.session_state.get("audio_generado", False):
+            # Botón generar / reintentar unificado
+            if st.button(
+                "🔊 Generar Audio" if not st.session_state.get("audio_error") else "🔄 Reintentar",
+                type="primary",
+                use_container_width=True,
+                disabled=generando,
+                key="btn_audio_generar_fragment",
+            ):
+                _generar_audio_sync(texto_informe)
+                # st.rerun() no necesario: el fragment se re-ejecuta automáticamente tras el callback
+        
+        else:
+            # Audio ya generado: botón regenerar
+            if st.button(
+                "🔊 Regenerar Audio",
+                use_container_width=True,
+                disabled=generando,
+                key="btn_audio_regenerar_fragment",
+            ):
+                st.session_state.audio_generado = False
+                st.session_state.audio_bytes = None
+                st.session_state.audio_duracion = 0
+                st.session_state.audio_tamano = 0
+                st.session_state.audio_voz = None
+                _generar_audio_sync(texto_informe)
+        
+        if generando:
+            st.info("⏳ Generando audio...")
+    
+    with col_audio2:
+        st.selectbox(
+            "Voz:",
+            options=list(VOCES_DISPONIBLES.keys()),
+            format_func=lambda x: VOCES_DISPONIBLES.get(x, x),
+            index=0,
+            key="select_voz_tts_fragment",
+        )
+    
+    # Botón limpiar (siempre visible si hay audio o error)
+    if st.session_state.get("audio_generado") or st.session_state.get("audio_error"):
+        if st.button(
+            "🗑️ Limpiar Audio",
+            use_container_width=True,
+            key="btn_audio_limpiar_fragment",
+        ):
+            for k, v in {
+                "audio_generado": False,
+                "audio_bytes": None,
+                "audio_error": None,
+                "audio_duracion": 0,
+                "audio_tamano": 0,
+                "audio_voz": None,
+                "audio_generando": False,
+            }.items():
+                st.session_state[k] = v
+            # El fragment se re-ejecuta automáticamente
+    
+    # ── Área de resultados ───────────────────────────────────────
+    if st.session_state.get("audio_generado") and st.session_state.get("audio_bytes"):
+        st.success(f"✅ Audio generado ({st.session_state.audio_duracion:.1f}s, {st.session_state.audio_tamano} bytes)")
+        st.audio(st.session_state.audio_bytes, format="audio/wav")
+
+        st.download_button(
+            label="⬇️ Descargar Audio",
+            data=st.session_state.audio_bytes,
+            file_name="informe_nexus.wav",
+            mime="audio/wav",
+            key="download_audio_btn_fragment",
+        )
+
+    elif st.session_state.get("audio_error"):
+        st.error(f"Error generando audio: {st.session_state.audio_error}")
+        if st.button("🔄 Reintentar", key="btn_audio_reintentar_fragment"):
+            st.session_state.audio_error = None
+            st.session_state.audio_generado = False
+            _generar_audio_sync(texto_informe)
+
+
+def _generar_audio_sync(texto: str) -> None:
+    """
+    Genera audio de forma síncrona y actualiza session_state.
+    Diseñado para ejecutarse dentro de un fragment callback.
+    """
+    import logging
+    from nexus_root.nexus_voice import crear_voice_synthesizer
+    import tempfile
+    
+    voz = st.session_state.get("select_voz_tts_fragment", "es-ES-ElviraNeural")
+    
+    if not texto or not texto.strip():
+        st.session_state.audio_error = "Texto vacío o inválido"
+        st.session_state.audio_generando = False
+        st.session_state.audio_generado = False
+        return
+
+    # Marcar como generando
+    st.session_state.audio_generando = True
+    st.session_state.audio_error = None
+
+    try:
+        voice_synthesizer = crear_voice_synthesizer()
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            audio_path = tmp.name
+
+        resultado_audio = voice_synthesizer.generar_audio_informe(
+            texto_informe=texto,
+            output_path=audio_path,
+            voz=voz
+        )
+
+        if resultado_audio.get("exito"):
+            with open(resultado_audio["archivo_audio"], "rb") as f:
+                st.session_state.audio_bytes = f.read()
+            st.session_state.audio_generado = True
+            st.session_state.audio_duracion = resultado_audio.get('duracion_estimada', 0)
+            st.session_state.audio_tamano = resultado_audio.get('tamaño_bytes', 0)
+            st.session_state.audio_voz = resultado_audio.get('voz_usada', voz)
+            st.session_state.audio_error = None
+        else:
+            st.session_state.audio_error = resultado_audio.get('error', 'Error desconocido')
+            st.session_state.audio_generado = False
+            st.session_state.audio_bytes = None
+    except Exception as e:
+        logging.error(f"Error generando audio: {e}", exc_info=True)
+        st.session_state.audio_error = f"Error generando audio: {str(e)}"
+        st.session_state.audio_generado = False
+        st.session_state.audio_bytes = None
+    finally:
+        # Siempre limpiar estado de generación
+        st.session_state.audio_generando = False
+
+
 st.set_page_config(page_title="Test Nexus Root - HPR", page_icon="🛡️", layout="wide")
 st.title("🛡️ Sandbox de Pruebas: Motor Nexus Root (Fase 3)")
 st.markdown("Interfaz gráfica aislada para probar la **Matriz de Precedencia Lógica** determinista con ejecución de herramientas externas y **síntesis en lenguaje natural**.")
@@ -33,37 +209,40 @@ TRIGGERS_CATALOGO = {
     "": "💬 Lenguaje Natural - Auto-detección Base"
 }
 
-col_trigger, col_input = st.columns([1, 4])
-with col_trigger:
-    trigger_seleccionado = st.selectbox(
-        "Trigger:",
-        options=list(TRIGGERS_CATALOGO.keys()),
-        format_func=lambda x: TRIGGERS_CATALOGO[x],
-        key="trigger_selector",
-        help="Selecciona un trigger del catálogo soportado por el backend"
-    )
+# Usar st.form para evitar recargas intermedias y mejorar UX
+with st.form("command_form", clear_on_submit=False):
+    col_trigger, col_input = st.columns([1, 4])
+    with col_trigger:
+        trigger_seleccionado = st.selectbox(
+            "Trigger:",
+            options=list(TRIGGERS_CATALOGO.keys()),
+            format_func=lambda x: TRIGGERS_CATALOGO[x],
+            key="trigger_selector",
+            help="Selecciona un trigger del catálogo soportado por el backend"
+        )
 
-with col_input:
-    entrada_usuario = st.text_input(
-        "Prompt:",
-        placeholder="Ej: últimas noticias sobre tecnología (se combinará con el trigger seleccionado)",
-        key="prompt_input"
-    )
+    with col_input:
+        entrada_usuario = st.text_input(
+            "Prompt:",
+            placeholder="Ej: últimas noticias sobre tecnología (se combinará con el trigger seleccionado)",
+            key="prompt_input"
+        )
 
-# Combinar trigger seleccionado con entrada del usuario
-entrada_completa = f"{trigger_seleccionado} {entrada_usuario}".strip() if trigger_seleccionado else entrada_usuario
+    # Combinar trigger seleccionado con entrada del usuario
+    entrada_completa = f"{trigger_seleccionado} {entrada_usuario}".strip() if trigger_seleccionado else entrada_usuario
 
-col1, col2 = st.columns([1, 5])
-with col1:
-    btn_probar = st.button("Ejecutar Enrutamiento", type="primary")
-with col2:
-    btn_vacio = st.button("Simular Input Vacío (Probar Max Priority)")
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        btn_probar = st.form_submit_button("Ejecutar Enrutamiento", type="primary")
+    with col2:
+        btn_vacio = st.form_submit_button("Simular Input Vacío (Probar Max Priority)")
 
-input_a_evaluar = None
-if btn_probar and entrada_completa:
-    input_a_evaluar = entrada_completa
-elif btn_vacio:
-    input_a_evaluar = ""
+    # En st.form, los botones devuelven True solo al hacer submit
+    input_a_evaluar = None
+    if btn_probar and entrada_completa:
+        input_a_evaluar = entrada_completa
+    elif btn_vacio:
+        input_a_evaluar = ""
 
 if input_a_evaluar is not None:
     st.divider()
@@ -147,106 +326,12 @@ if input_a_evaluar is not None:
                     st.markdown(f"- {adv}")
             
             # ============================================================
-            # BOTÓN DE REPRODUCCIÓN DE AUDIO (PERSISTENTE SIN st.rerun)
+            # REPRODUCCIÓN DE AUDIO — FRAGMENT ATÓMICO (REACTIVIDAD NATIVA)
             # ============================================================
             st.divider()
             st.subheader("🔊 Reproducción en Voz Alta")
-
-            # ------------------------------------------------------------------
-            # CALLBACKS — definidos ANTES del render para reactividad nativa
-            # ------------------------------------------------------------------
-            def _generar_audio_callback():
-                """Genera audio y guarda bytes en session_state (sin st.rerun, no bloqueante)."""
-                voz = st.session_state.get("select_voz_tts", "es-ES-ElviraNeural")
-                texto = st.session_state.get("audio_texto_completo", "")
-                if not texto or not texto.strip():
-                    st.session_state.audio_error = "Texto vacío o inválido"
-                    st.session_state.audio_generando = False
-                    st.session_state.audio_generado = False
-                    return
-
-                # Marcar como generando (para deshabilitar botón) - SIN st.spinner
-                st.session_state.audio_generando = True
-                st.session_state.audio_error = None
-
-                try:
-                    import logging
-                    from nexus_root.nexus_voice import crear_voice_synthesizer
-                    import tempfile
-
-                    voice_synthesizer = crear_voice_synthesizer()
-                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-                        audio_path = tmp.name
-
-                    resultado_audio = voice_synthesizer.generar_audio_informe(
-                        texto_informe=texto,
-                        output_path=audio_path,
-                        voz=voz
-                    )
-
-                    if resultado_audio.get("exito"):
-                        with open(resultado_audio["archivo_audio"], "rb") as f:
-                            st.session_state.audio_bytes = f.read()
-                        st.session_state.audio_generado = True
-                        st.session_state.audio_duracion = resultado_audio.get('duracion_estimada', 0)
-                        st.session_state.audio_tamano = resultado_audio.get('tamaño_bytes', 0)
-                        st.session_state.audio_voz = resultado_audio.get('voz_usada', voz)
-                        st.session_state.audio_error = None
-                    else:
-                        st.session_state.audio_error = resultado_audio.get('error', 'Error desconocido')
-                        st.session_state.audio_generado = False
-                        st.session_state.audio_bytes = None
-                except Exception as e:
-                    logging.error(f"Error generando audio: {e}", exc_info=True)
-                    st.session_state.audio_error = f"Error generando audio: {str(e)}"
-                    st.session_state.audio_generado = False
-                    st.session_state.audio_bytes = None
-                finally:
-                    # Siempre limpiar estado de generación
-                    st.session_state.audio_generando = False
-
-            def _limpiar_audio_callback():
-                """Resetea todo el estado de audio (sin st.rerun)."""
-                for k, v in {
-                    "audio_generado": False,
-                    "audio_bytes": None,
-                    "audio_error": None,
-                    "audio_duracion": 0,
-                    "audio_tamano": 0,
-                    "audio_voz": None,
-                    "audio_generando": False,
-                }.items():
-                    st.session_state[k] = v
-
-            def _reintentar_audio_callback():
-                """Limpia error para permitir reintento (sin st.rerun)."""
-                st.session_state.audio_error = None
-                st.session_state.audio_generado = False
-
-            def _voz_cambiada_callback():
-                """Callback al cambiar voz: invalida audio generado para forzar regeneración con nueva voz."""
-                # La selección ya se guarda automáticamente en st.session_state["select_voz_tts"] por el key
-                # Si ya hay audio generado, marcarlo como obsoleto para que el usuario regenere
-                if st.session_state.get("audio_generado", False):
-                    st.session_state.audio_generado = False
-                    st.session_state.audio_bytes = None
-                    st.session_state.audio_voz = None
-                    st.session_state.audio_duracion = 0
-                    st.session_state.audio_tamano = 0
-
-            # ------------------------------------------------------------------
-            # INICIALIZACIÓN DE ESTADO (solo primera vez)
-            # ------------------------------------------------------------------
-            if "audio_generado" not in st.session_state:
-                st.session_state.audio_generado = False
-                st.session_state.audio_bytes = None
-                st.session_state.audio_error = None
-                st.session_state.audio_duracion = 0
-                st.session_state.audio_tamano = 0
-                st.session_state.audio_voz = None
-                st.session_state.audio_generando = False
-
-            # Construir texto completo del informe para síntesis de voz (solo una vez)
+            
+            # Preparar texto completo del informe para TTS
             def _safe_str(val) -> str:
                 """Convierte valor a string de forma segura (maneja None, list, str)."""
                 if val is None:
@@ -255,98 +340,20 @@ if input_a_evaluar is not None:
                     return "\n".join(str(v) for v in val)
                 return str(val)
             
-            if "audio_texto_completo" not in st.session_state:
-                texto_informe = ""
-                if informe_sintesis.get("introduccion"):
-                    texto_informe += _safe_str(informe_sintesis["introduccion"]) + "\n\n"
-                if informe_sintesis.get("hallazgos_clave"):
-                    texto_informe += "Hallazgos clave:\n" + _safe_str(informe_sintesis["hallazgos_clave"]) + "\n\n"
-                if informe_sintesis.get("analisis_tecnico"):
-                    texto_informe += _safe_str(informe_sintesis["analisis_tecnico"]) + "\n\n"
-                if informe_sintesis.get("conclusiones"):
-                    texto_informe += _safe_str(informe_sintesis["conclusiones"]) + "\n\n"
-                if informe_sintesis.get("advertencias"):
-                    texto_informe += "Advertencias:\n" + _safe_str(informe_sintesis["advertencias"])
-                st.session_state.audio_texto_completo = texto_informe
-
-            # ------------------------------------------------------------------
-            # RENDER DECLARATIVO — reactividad nativa de Streamlit
-            # ------------------------------------------------------------------
-            VOCES_DISPONIBLES = {
-                "es-ES-ElviraNeural": "🇪🇸 Elvira (España)",
-                "es-ES-AlvaroNeural": "🇪🇸 Álvaro (España)",
-                "es-MX-DaliaNeural": "🇲🇽 Dalia (México)",
-                "es-MX-JorgeNeural": "🇲🇽 Jorge (México)"
-            }
-
-            if st.session_state.get("audio_texto_completo", "").strip():
-                col_audio1, col_audio2 = st.columns([1, 3])
-                with col_audio1:
-                    generando = st.session_state.get("audio_generando", False)
-                    if not st.session_state.get("audio_generado", False):
-                        # Botón generar / reintentar unificado
-                        st.button(
-                            "🔊 Generar Audio" if not st.session_state.get("audio_error") else "🔄 Reintentar",
-                            type="primary",
-                            use_container_width=True,
-                            on_click=_generar_audio_callback,
-                            key="btn_audio_generar",
-                            disabled=generando,
-                        )
-                        if generando:
-                            st.info("⏳ Generando audio...")
-                    else:
-                        st.button(
-                            "🔊 Regenerar Audio",
-                            use_container_width=True,
-                            on_click=_generar_audio_callback,
-                            key="btn_audio_regenerar",
-                            disabled=generando,
-                        )
-                        if generando:
-                            st.info("⏳ Regenerando audio...")
-                with col_audio2:
-                    st.selectbox(
-                        "Voz:",
-                        options=list(VOCES_DISPONIBLES.keys()),
-                        format_func=lambda x: VOCES_DISPONIBLES.get(x, x),
-                        index=0,
-                        key="select_voz_tts",
-                        on_change=_voz_cambiada_callback,
-                    )
-
-                # Botón limpiar (siempre visible si hay audio o error)
-                if st.session_state.get("audio_generado") or st.session_state.get("audio_error"):
-                    st.button(
-                        "🗑️ Limpiar Audio",
-                        use_container_width=True,
-                        on_click=_limpiar_audio_callback,
-                        key="btn_audio_limpiar",
-                    )
-
-                # ── Área de resultados ───────────────────────────────────────
-                if st.session_state.get("audio_generado") and st.session_state.get("audio_bytes"):
-                    st.success(f"✅ Audio generado ({st.session_state.audio_duracion:.1f}s, {st.session_state.audio_tamano} bytes)")
-                    st.audio(st.session_state.audio_bytes, format="audio/wav")
-
-                    st.download_button(
-                        label="⬇️ Descargar Audio",
-                        data=st.session_state.audio_bytes,
-                        file_name="informe_nexus.wav",
-                        mime="audio/wav",
-                        key="download_audio_btn",
-                    )
-
-                elif st.session_state.get("audio_error"):
-                    st.error(f"Error generando audio: {st.session_state.audio_error}")
-                    st.button(
-                        "🔄 Reintentar",
-                        on_click=_reintentar_audio_callback,
-                        key="btn_audio_reintentar",
-                    )
-
-            else:
-                st.info("ℹ️ No hay contenido suficiente en el informe para generar audio.")
+            texto_informe = ""
+            if informe_sintesis.get("introduccion"):
+                texto_informe += _safe_str(informe_sintesis["introduccion"]) + "\n\n"
+            if informe_sintesis.get("hallazgos_clave"):
+                texto_informe += "Hallazgos clave:\n" + _safe_str(informe_sintesis["hallazgos_clave"]) + "\n\n"
+            if informe_sintesis.get("analisis_tecnico"):
+                texto_informe += _safe_str(informe_sintesis["analisis_tecnico"]) + "\n\n"
+            if informe_sintesis.get("conclusiones"):
+                texto_informe += _safe_str(informe_sintesis["conclusiones"]) + "\n\n"
+            if informe_sintesis.get("advertencias"):
+                texto_informe += "Advertencias:\n" + _safe_str(informe_sintesis["advertencias"])
+            
+            # Renderizar fragmento de audio atómico (se re-ejecuta independientemente)
+            _render_audio_fragment(texto_informe)
         else:
             st.info("ℹ️ El informe está vacío, no hay contenido para generar audio.")
 
@@ -383,3 +390,178 @@ if input_a_evaluar is not None:
 
             st.markdown("**Metadata completa:**")
             st.json(metadata)
+
+
+# ============================================================================
+# FRAGMENTO ATÓMICO DE AUDIO — Reactividad nativa sin st.rerun manual
+# ============================================================================
+@st.fragment
+def _render_audio_fragment(texto_informe: str) -> None:
+    """
+    Fragmento de Streamlit para renderizado atómico del reproductor de audio.
+    
+    Los fragments se re-ejecutan independientemente del script principal,
+    permitiendo actualizaciones de UI reactivas (botones, selectbox, audio)
+    sin recargar toda la página.
+    """
+    import logging
+    from nexus_root.nexus_voice import crear_voice_synthesizer
+    import tempfile
+    
+    VOCES_DISPONIBLES = {
+        "es-ES-ElviraNeural": "🇪🇸 Elvira (España)",
+        "es-ES-AlvaroNeural": "🇪🇸 Álvaro (España)",
+        "es-MX-DaliaNeural": "🇲🇽 Dalia (México)",
+        "es-MX-JorgeNeural": "🇲🇽 Jorge (México)"
+    }
+    
+    # Inicialización de estado del fragment (persistente entre re-ejecuciones del fragment)
+    if "audio_generado" not in st.session_state:
+        st.session_state.audio_generado = False
+        st.session_state.audio_bytes = None
+        st.session_state.audio_error = None
+        st.session_state.audio_duracion = 0
+        st.session_state.audio_tamano = 0
+        st.session_state.audio_voz = None
+        st.session_state.audio_generando = False
+    
+    if not texto_informe or not texto_informe.strip():
+        st.info("ℹ️ No hay contenido suficiente en el informe para generar audio.")
+        return
+    
+    col_audio1, col_audio2 = st.columns([1, 3])
+    
+    with col_audio1:
+        generando = st.session_state.get("audio_generando", False)
+        
+        if not st.session_state.get("audio_generado", False):
+            # Botón generar / reintentar unificado
+            if st.button(
+                "🔊 Generar Audio" if not st.session_state.get("audio_error") else "🔄 Reintentar",
+                type="primary",
+                use_container_width=True,
+                disabled=generando,
+                key="btn_audio_generar_fragment",
+            ):
+                _generar_audio_sync(texto_informe)
+                # st.rerun() no necesario: el fragment se re-ejecuta automáticamente tras el callback
+        
+        else:
+            # Audio ya generado: botón regenerar
+            if st.button(
+                "🔊 Regenerar Audio",
+                use_container_width=True,
+                disabled=generando,
+                key="btn_audio_regenerar_fragment",
+            ):
+                st.session_state.audio_generado = False
+                st.session_state.audio_bytes = None
+                st.session_state.audio_duracion = 0
+                st.session_state.audio_tamano = 0
+                st.session_state.audio_voz = None
+                _generar_audio_sync(texto_informe)
+        
+        if generando:
+            st.info("⏳ Generando audio...")
+    
+    with col_audio2:
+        st.selectbox(
+            "Voz:",
+            options=list(VOCES_DISPONIBLES.keys()),
+            format_func=lambda x: VOCES_DISPONIBLES.get(x, x),
+            index=0,
+            key="select_voz_tts_fragment",
+        )
+    
+    # Botón limpiar (siempre visible si hay audio o error)
+    if st.session_state.get("audio_generado") or st.session_state.get("audio_error"):
+        if st.button(
+            "🗑️ Limpiar Audio",
+            use_container_width=True,
+            key="btn_audio_limpiar_fragment",
+        ):
+            for k, v in {
+                "audio_generado": False,
+                "audio_bytes": None,
+                "audio_error": None,
+                "audio_duracion": 0,
+                "audio_tamano": 0,
+                "audio_voz": None,
+                "audio_generando": False,
+            }.items():
+                st.session_state[k] = v
+            # El fragment se re-ejecuta automáticamente
+    
+    # ── Área de resultados ───────────────────────────────────────
+    if st.session_state.get("audio_generado") and st.session_state.get("audio_bytes"):
+        st.success(f"✅ Audio generado ({st.session_state.audio_duracion:.1f}s, {st.session_state.audio_tamano} bytes)")
+        st.audio(st.session_state.audio_bytes, format="audio/wav")
+
+        st.download_button(
+            label="⬇️ Descargar Audio",
+            data=st.session_state.audio_bytes,
+            file_name="informe_nexus.wav",
+            mime="audio/wav",
+            key="download_audio_btn_fragment",
+        )
+
+    elif st.session_state.get("audio_error"):
+        st.error(f"Error generando audio: {st.session_state.audio_error}")
+        if st.button("🔄 Reintentar", key="btn_audio_reintentar_fragment"):
+            st.session_state.audio_error = None
+            st.session_state.audio_generado = False
+            _generar_audio_sync(texto_informe)
+
+
+def _generar_audio_sync(texto: str) -> None:
+    """
+    Genera audio de forma síncrona y actualiza session_state.
+    Diseñado para ejecutarse dentro de un fragment callback.
+    """
+    import logging
+    from nexus_root.nexus_voice import crear_voice_synthesizer
+    import tempfile
+    
+    voz = st.session_state.get("select_voz_tts_fragment", "es-ES-ElviraNeural")
+    
+    if not texto or not texto.strip():
+        st.session_state.audio_error = "Texto vacío o inválido"
+        st.session_state.audio_generando = False
+        st.session_state.audio_generado = False
+        return
+
+    # Marcar como generando
+    st.session_state.audio_generando = True
+    st.session_state.audio_error = None
+
+    try:
+        voice_synthesizer = crear_voice_synthesizer()
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            audio_path = tmp.name
+
+        resultado_audio = voice_synthesizer.generar_audio_informe(
+            texto_informe=texto,
+            output_path=audio_path,
+            voz=voz
+        )
+
+        if resultado_audio.get("exito"):
+            with open(resultado_audio["archivo_audio"], "rb") as f:
+                st.session_state.audio_bytes = f.read()
+            st.session_state.audio_generado = True
+            st.session_state.audio_duracion = resultado_audio.get('duracion_estimada', 0)
+            st.session_state.audio_tamano = resultado_audio.get('tamaño_bytes', 0)
+            st.session_state.audio_voz = resultado_audio.get('voz_usada', voz)
+            st.session_state.audio_error = None
+        else:
+            st.session_state.audio_error = resultado_audio.get('error', 'Error desconocido')
+            st.session_state.audio_generado = False
+            st.session_state.audio_bytes = None
+    except Exception as e:
+        logging.error(f"Error generando audio: {e}", exc_info=True)
+        st.session_state.audio_error = f"Error generando audio: {str(e)}"
+        st.session_state.audio_generado = False
+        st.session_state.audio_bytes = None
+    finally:
+        # Siempre limpiar estado de generación
+        st.session_state.audio_generando = False
