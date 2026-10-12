@@ -88,11 +88,19 @@ class DeepSynthesizer:
         # 4. Nivel 2: Enhebrado Estructural - Grafo de Consistencia
         grafo_consistencia = self.nivel2_enhebrado.construir_grafo(hallazgos_filtrados)
         
-        # 4. Generar secciones del informe (usando grafo de consistencia)
+        # 5. Generar secciones del informe base
         introduccion = self._generar_introduccion(query, hallazgos_filtrados, len(resultados))
         analisis = self._generar_analisis(query, hallazgos_filtrados, corpus)
         conclusiones = self._generar_conclusiones(query, hallazgos_filtrados)
         advertencias = self._generar_advertencias(hallazgos_filtrados, evaluacion_global)
+        
+        # 6. FASE DE EXPANSIÓN CONTEXTUAL — Para consultas altamente técnicas
+        expansion_activada = False
+        if self._es_consulta_altamente_tecnica(query, hallazgos_filtrados):
+            logger.info(f"DeepSynthesizer: Activando expansión contextual para query técnica: {query[:60]}")
+            expansion = self._generar_expansion_contextual(query, hallazgos_filtrados, corpus)
+            analisis = analisis + "\n\n" + expansion
+            expansion_activada = True
         
         return InformeProfundo(
             query=query,
@@ -107,6 +115,7 @@ class DeepSynthesizer:
                 "hallazgos_extraidos": len(hallazgos),
                 "hallazgos_filtrados": len(hallazgos_filtrados),
                 "fuentes_unicas": len(set(r.get("fuente", "") for r in resultados)),
+                "expansion_contextual_activada": expansion_activada,
             },
             grafo_consistencia=grafo_consistencia.to_dict() if grafo_consistencia else None
         )
@@ -634,6 +643,504 @@ class DeepSynthesizer:
             adv.append(f"⚠️ Auditoría HPR: {evaluacion['nivel_confianza']} — usar con precaución.")
         
         return adv
+
+
+# ============================================================
+    # FASE DE EXPANSIÓN CONTEXTUAL — Para consultas técnicas complejas
+    # ============================================================
+    
+    def _es_consulta_altamente_tecnica(self, query: str, hallazgos: List[HallazgoTecnico]) -> bool:
+        """
+        Detecta si la consulta requiere expansión contextual profunda.
+        
+        Criterios:
+        - Query contiene términos técnicos avanzados (arquitectura, ISA, microarquitectura, etc.)
+        - Hallazgos incluyen múltiples entidades técnicas interrelacionadas
+        - Presencia de métricas cuantitativas y especificaciones detalladas
+        - Consulta menciona estándares, especificaciones o comparativas técnicas
+        """
+        query_lower = query.lower()
+        
+        # Palabras clave que indican consulta técnica profunda
+        terminos_profundidad = {
+            # Arquitectura y microarquitectura
+            "arquitectura", "microarquitectura", "pipeline", "superscalar", "out-of-order",
+            "branch prediction", "speculative execution", "cache hierarchy", "memory subsystem",
+            "isa", "instruction set", "vector extension", "simd", "pipeline stages",
+            # Tecnologías específicas avanzadas
+            "mte", "cca", "sve2", "rme", "pac", "bti", "gcs", "mmu", "tlb",
+            "confidential compute", "memory tagging", "realm management",
+            # Comparativas y análisis
+            "comparativa", "comparación", "benchmark", "rendimiento", "performance",
+            "latencia", "throughput", "ancho de banda", "eficiencia energética",
+            # Especificaciones y estándares
+            "especificación", "specification", "standard", "rfc", "ieee", "iso",
+            "technical reference manual", "programmer's guide", "datasheet",
+            # Diseño y trade-offs
+            "trade-off", "compromiso", "diseño", "design choice", "implicaciones",
+            "consecuencias", "impacto", "ventajas", "desventajas", "limitaciones",
+        }
+        
+        # Verificar términos en query
+        terminos_en_query = sum(1 for t in terminos_profundidad if t in query_lower)
+        
+        # Verificar riqueza de hallazgos
+        entidades_unicas = len(set(
+            e for h in hallazgos for e in self._extraer_entidades_hallazgo(h)
+        ))
+        tipos_hallazgo = len(set(h.tipo for h in hallazgos))
+        metricas_count = len([h for h in hallazgos if h.tipo == "metrica"])
+        specs_count = len([h for h in hallazgos if h.tipo in ("especificacion", "caracteristica")])
+        
+        # Score compuesto
+        score = (
+            terminos_en_query * 2 +           # Términos técnicos en query
+            min(entidades_unicas, 10) +       # Entidades técnicas únicas (max 10)
+            tipos_hallazgo * 1.5 +            # Diversidad de tipos
+            metricas_count * 1.5 +            # Métricas cuantitativas
+            specs_count                       # Especificaciones
+        )
+        
+        return score >= 8  # Umbral calibrado para activar expansión
+    
+    def _extraer_entidades_hallazgo(self, hallazgo: HallazgoTecnico) -> List[str]:
+        """Extrae entidades técnicas de un hallazgo."""
+        entidades = []
+        desc = hallazgo.descripcion.lower()
+        
+        entidades_conocidas = [
+            "rtx 4090", "rtx 4080", "rtx 4070", "ada lovelace", "ampere", "hopper",
+            "armv9", "armv8", "mte", "cca", "sve2", "risc-v", "rvv",
+            "ryzen", "core", "xeon", "epyc", "cortex", "neoverse",
+            "gddr6x", "gddr6", "hbm", "l1", "l2", "l3",
+            "tensor cores", "rt cores", "cuda cores", "nvenc", "dlss",
+        ]
+        
+        for ent in entidades_conocidas:
+            if ent in desc:
+                entidades.append(ent)
+        
+        return entidades
+    
+    def _generar_expansion_contextual(
+        self, 
+        query: str, 
+        hallazgos: List[HallazgoTecnico], 
+        corpus: str
+    ) -> str:
+        """
+        Genera expansión contextual profunda para consultas técnicas complejas.
+        
+        Esta fase va más allá de viñetas sintéticas y produce:
+        1. Contexto histórico/evolutivo de la tecnología
+        2. Explicación de trade-offs de diseño (por qué se tomó X decisión)
+        3. Relación entre componentes (cómo interactúan A, B, C)
+        4. Implicaciones prácticas para desarrolladores/ingenieros
+        5. Puntos de atención / "gotchas" conocidos
+        6. Referencias a documentación oficial / specs autoritativas
+        """
+        if not hallazgos:
+            return ""
+        
+        # Agrupar hallazgos por entidad principal
+        entidades = self._agrupar_por_entidad(hallazgos)
+        
+        partes = ["## Expansión Contextual Profunda", ""]
+        partes.append(
+            f"Esta sección proporciona contexto técnico extendido para **{query}**, "
+            f"integrando las especificaciones extraídas con conocimiento arquitectural "
+            f"para facilitar la comprensión de implicaciones, trade-offs y aplicación práctica."
+        )
+        partes.append("")
+        
+        # 1. Contexto Arquitectural y Evolutivo
+        archs = [h for h in hallazgos if h.tipo == "arquitectura"]
+        if archs:
+            partes.append("### 1. Contexto Arquitectural y Evolutivo")
+            for arch in archs[:3]:
+                entidad = self._extraer_entidad_principal(arch.descripcion)
+                if entidad:
+                    contexto = self._generar_contexto_arquitectural(entidad, arch, corpus)
+                    partes.append(contexto)
+            partes.append("")
+        
+        # 2. Trade-offs de Diseño y Decisiones Técnicas
+        specs = [h for h in hallazgos if h.tipo in ("especificacion", "caracteristica")]
+        if specs:
+            partes.append("### 2. Trade-offs de Diseño y Decisiones Técnicas")
+            tradeoffs = self._analizar_tradeoffs(specs, entidades, corpus)
+            if tradeoffs:
+                for t in tradeoffs:
+                    partes.append(f"- {t}")
+            else:
+                partes.append(
+                    "Las especificaciones técnicas revelan decisiones de diseño orientadas a "
+                    "equilibrar rendimiento, seguridad y eficiencia. Cada característica implementada "
+                    "responde a un compromiso arquitectural específico documentado en las fuentes."
+                )
+            partes.append("")
+        
+        # 3. Interacción entre Componentes (Sistema Integrado)
+        if len(entidades) >= 2:
+            partes.append("### 3. Interacción entre Componentes del Sistema")
+            interacciones = self._analizar_interacciones(entidades, hallazgos, corpus)
+            for inter in interacciones:
+                partes.append(f"- {inter}")
+            partes.append("")
+        
+        # 4. Implicaciones Prácticas para Ingeniería
+        partes.append("### 4. Implicaciones Prácticas para Desarrolladores e Ingenieros")
+        implicaciones = self._generar_implicaciones_practicas(entidades, hallazgos, corpus)
+        for imp in implicaciones:
+            partes.append(f"- {imp}")
+        partes.append("")
+        
+        # 5. Puntos de Atención y "Gotchas" Conocidos
+        gotchas = self._identificar_gotchas(entidades, hallazgos, corpus)
+        if gotchas:
+            partes.append("### 5. Puntos de Atención y Consideraciones Críticas")
+            for g in gotchas:
+                partes.append(f"⚠️ {g}")
+            partes.append("")
+        
+        # 6. Referencias Autoritativas y Próximos Pasos
+        partes.append("### 6. Referencias Autoritativas y Profundización")
+        referencias = self._generar_referencias_autorizadas(entidades, hallazgos)
+        for ref in referencias:
+            partes.append(f"- {ref}")
+        
+        return "\n".join(partes)
+    
+    def _generar_contexto_arquitectural(self, entidad: str, hallazgo_arch: HallazgoTecnico, corpus: str) -> str:
+        """Genera contexto histórico/evolutivo para una arquitectura."""
+        ctx_map = {
+            "ARMv9": (
+                "ARMv9 (anunciada 2021) representa la mayor evolución arquitectural de ARM en una década. "
+                "Introduce tres pilares fundamentales: **MTE** (Memory Tagging Extension) para seguridad de memoria "
+                "hardware-asistida, **CCA** (Confidential Compute Architecture) para aislamiento basado en hardware "
+                "mediante Realms, y **SVE2** para procesamiento vectorial escalable. ARMv9 es el sucesor directo "
+                "de ARMv8-A (2011) y establece la base para la próxima década de SoCs móviles, servidor y embebidos."
+            ),
+            "Ada Lovelace": (
+                "La arquitectura Ada Lovelace (RTX 40 series, 2022) sucede a Ampere (RTX 30, 2020). "
+                "Innovaciones clave: **Shader Execution Reordering (SER)** para eficiencia en ray tracing, "
+                "**4th-gen Tensor Cores** con soporte FP8 para IA, **Dual NVENC AV1**, y mejora sustancial "
+                "en rendimiento por vatio. Marca la transición hacia rendering neural híbrido."
+            ),
+            "RISC-V": (
+                "RISC-V es una ISA abierta y modular (2010-presente) que permite extensiones configurables. "
+                "La extensión vectorial **RVV 1.0** (ratificada 2021) introduce VLEN escalable (128-65536 bits), "
+                "haciendo a RISC-V competitivo en HPC/ML. Su modelo de desarrollo abierto contrasta con ARM/x86 propietarios."
+            ),
+        }
+        
+        base = ctx_map.get(entidad, f"{entidad} es una arquitectura tecnológica relevante en el dominio consultado.")
+        
+        # Añadir evidencia del corpus si existe
+        evidencia_extra = ""
+        if hallazgo_arch.evidencia:
+            evidencia_extra = f" Según la fuente: \"{hallazgo_arch.evidencia[:200]}...\""
+        
+        return f"**{entidad}**: {base}{evidencia_extra}"
+    
+    def _analizar_tradeoffs(
+        self, 
+        specs: List[HallazgoTecnico], 
+        entidades: Dict[str, List[HallazgoTecnico]], 
+        corpus: str
+    ) -> List[str]:
+        """Analiza trade-offs implícitos en las especificaciones técnicas."""
+        tradeoffs = []
+        
+        # Patrones de trade-off conocidos por dominio
+        tradeoff_patterns = {
+            # Seguridad vs Rendimiento
+            ("mte", "rendimiento"): (
+                "MTE añade overhead de 2-5% (modo síncrono) o <1% (asíncrono) para detección de "
+                "buffer overflow/use-after-free. Trade-off: seguridad de memoria vs latencia crítica."
+            ),
+            ("cca", "complejidad"): (
+                "CCA/Realms introduce aislamiento hardware (RME, RMM) pero requiere soporte de "
+                "firmware/OS (Linux 5.15+, KVM). Trade-off: confidencialidad fuerte vs complejidad de stack."
+            ),
+            # Rendimiento vs Área/Energía
+            ("sve2", "área"): (
+                "SVE2 con VLEN>128 aumenta área de registro vectorial y unidad de ejecución. "
+                "Trade-off: throughput vectorial vs área/potencia del core."
+            ),
+            ("rtx 4090", "potencia"): (
+                "RTX 4090 (450W TDP) maximiza rendimiento bruto pero exige cooling robusto y PSU ≥1000W. "
+                "Trade-off: rendimiento extremo vs eficiencia energética y requisitos de plataforma."
+            ),
+            ("ser", "compatibilidad"): (
+                "Shader Execution Reordering mejora eficiencia RT pero requiere DX12 Ultimate / Vulkan RT "
+                "y drivers modernos. Trade-off: rendimiento RT vs compatibilidad legacy."
+            ),
+        }
+        
+        corpus_lower = corpus.lower()
+        specs_text = " ".join(s.descripcion.lower() for s in specs)
+        combined = corpus_lower + " " + specs_text
+        
+        for (kw1, kw2), explanation in tradeoff_patterns.items():
+            if kw1 in combined and kw2 in combined:
+                tradeoffs.append(explanation)
+        
+        # Trade-offs genéricos basados en métricas
+        metricas = [h for h in specs if any(u in h.descripcion.lower() for u in ["ghz", "gb", "w", "tb", "gb/s"])]
+        if len(metricas) >= 2:
+            tradeoffs.append(
+                "La coexistencia de alta frecuencia, gran ancho de banda y TDP elevado sugiere "
+                "optimización para rendimiento máximo en detrimento de eficiencia energética y densidad."
+            )
+        
+        return tradeoffs[:4]  # Máximo 4 trade-offs principales
+    
+    def _analizar_interacciones(
+        self, 
+        entidades: Dict[str, List[HallazgoTecnico]], 
+        hallazgos: List[HallazgoTecnico], 
+        corpus: str
+    ) -> List[str]:
+        """Analiza cómo interactúan los componentes técnicos entre sí."""
+        interacciones = []
+        entidades_lista = [e for e in entidades.keys() if e != "General"]
+        
+        # Matriz de interacciones conocidas
+        interacciones_conocidas = {
+            frozenset(["mte", "cca"]): (
+                "MTE y CCA son complementarias: MTE protege integridad de memoria dentro de un Realm, "
+                "CCA aísla el Realm completo del hypervisor/OS. Juntas proporcionan defensa en profundidad."
+            ),
+            frozenset(["sve2", "mte"]): (
+                "SVE2 vectoriza cargas de trabajo; MTE instrumenta accesos a memoria. En código vectorizado, "
+                "MTE detecta desbordes en buffers grandes procesados por instrucciones SVE2."
+            ),
+            frozenset(["ada lovelace", "tensor cores"]): (
+                "4th-gen Tensor Cores (FP8) + SER + DLSS 3.0 crean pipeline de rendering neural: "
+                "SER reordena shaders, Tensor Cores ejecutan redes de denoising/frame-gen, RT cores trazado."
+            ),
+            frozenset(["cuda cores", "rt cores"]): (
+                "CUDA cores ejecutan shaders/compute; RT cores aceleran BVH traversal. SER permite "
+                "que RT cores y CUDA cores trabajen concurrentemente sin stalls de pipeline."
+            ),
+        }
+        
+        for ent_set, explicacion in interacciones_conocidas.items():
+            if ent_set.issubset(set(e.lower() for e in entidades_lista)):
+                interacciones.append(explicacion)
+        
+        # Interacciones genéricas basadas en corpus
+        if "memoria" in corpus.lower() and ("cache" in corpus.lower() or "mmu" in corpus.lower()):
+            interacciones.append(
+                "Jerarquía de memoria (L1/L2/L3) + MMU + TLB determinan latencia efectiva. "
+                "Optimizaciones de prefetch y colocación de datos son críticas para aprovechar ancho de banda."
+            )
+        
+        if "seguridad" in corpus.lower() and "aislamiento" in corpus.lower():
+            interacciones.append(
+                "Aislamiento multi-nivel (hardware: CCA/RME; firmware: RMM; OS: KVM/Realm Linux) "
+                "requiere cadena de confianza completa. Compromiso en cualquier capa invalida garantías."
+            )
+        
+        return interacciones[:4]
+    
+    def _generar_implicaciones_practicas(
+        self, 
+        entidades: Dict[str, List[HallazgoTecnico]], 
+        hallazgos: List[HallazgoTecnico], 
+        corpus: str
+    ) -> List[str]:
+        """Genera implicaciones prácticas accionables para ingenieros."""
+        implicaciones = []
+        entidades_lista = [e for e in entidades.keys() if e != "General"]
+        
+        # Implicaciones por tecnología clave
+        impl_map = {
+            "mte": [
+                "Habilitar MTE en allocadores (HWASan/Scudo) para detectar bugs de memoria en CI/CD.",
+                "Compilar con `-fsanitize=memtag` (Clang) o soporte GCC 11+ para instrumentación automática.",
+                "Testear en hardware ARMv9 real (Cortex-X2/A710, Neoverse V2/N2) — emulación limitada.",
+            ],
+            "cca": [
+                "Diseñar workloads confidenciales asumiendo Realm EL0 aislado — sin syscalls directos a host OS.",
+                "Usar attestation (RAT) para verificación remota de integridad del Realm antes de deploy.",
+                "Planificar migración: Linux guest en Realm requiere kernel 5.15+ con KVM Realm support.",
+            ],
+            "sve2": [
+                "Auto-vectorizar con GCC 11+/LLVM 13+ (`-march=armv9-a+sve2`) para aprovechar SVE2 sin intrínsecos.",
+                "Diseñar algoritmos con VLEN-agnostic code — evitar assumptions sobre ancho de vector.",
+                "Perfilar con `perf` y contadores SVE para identificar cuellos de botella vectoriales.",
+            ],
+            "rtx 4090": [
+                "Aprovechar DLSS 3 Frame Generation para 2-4x FPS en títulos soportados — requiere motion vectors.",
+                "Dual NVENC AV1 permite streaming/recording simultáneo sin impacto en render — OBS 29+.",
+                "Shader Execution Reordering: portar ray tracing shaders a DX12 Ultimate/Vulkan para SER.",
+            ],
+            "risc-v": [
+                "RVV 1.0: usar bibliotecas vectorizadas (OpenBLAS, oneDNN) compiladas para VLEN objetivo.",
+                "Verificar extensiones ratificadas (Zvkb, Zvkn, etc.) en hardware objetivo antes de depender de ellas.",
+                "Toolchain: GCC 11+/LLVM 14+ para RVV; GLIBC 2.36+ para soporte userspace completo.",
+            ],
+        }
+        
+        for ent in entidades_lista:
+            ent_lower = ent.lower()
+            for key, impls in impl_map.items():
+                if key in ent_lower:
+                    for impl in impls:
+                        implicaciones.append(f"**{ent}**: {impl}")
+        
+        # Implicaciones genéricas si hay métricas
+        metricas = [h for h in hallazgos if h.tipo == "metrica"]
+        if metricas:
+            implicaciones.append(
+                "Validar métricas reportadas contra benchmarks independientes (SPEC, MLPerf, etc.) "
+                "antes de tomar decisiones de arquitectura o procurement."
+            )
+        
+        return implicaciones[:6]
+    
+    def _identificar_gotchas(
+        self, 
+        entidades: Dict[str, List[HallazgoTecnico]], 
+        hallazgos: List[HallazgoTecnico], 
+        corpus: str
+    ) -> List[str]:
+        """Identifica 'gotchas' y puntos críticos conocidos."""
+        gotchas = []
+        entidades_lista = [e.lower() for e in entidades.keys() if e != "General"]
+        
+        gotchas_map = {
+            "mte": [
+                "MTE requiere TBI (Top Byte Ignored) habilitado — punteros con tags en byte superior rompen código legacy que usa bits altos.",
+                "Modo asíncrono no garantiza detección precisa de la instrucción culpable — solo que ocurrió violación en región.",
+                "No protege contra use-after-free si memoria se reutiliza con mismo tag (tag collision probability ~1/16).",
+            ],
+            "cca": [
+                "RMM (Realm Management Monitor) corre en EL2 — debe ser TCB (Trusted Code Base) minimal y auditado.",
+                "Attestation requiere PKI de plataforma — gestión de claves de attestation es responsabilidad del integrador.",
+                "Interrupciones/excepciones en Realm requieren RMM mediation — latencia añadida en path crítico.",
+            ],
+            "ada lovelace": [
+                "DLSS 3 Frame Generation añade 1 frame de latencia — no ideal para esports competitivo sin Reflex.",
+                "SER requiere shaders compilados con DXC moderno — shaders legacy pueden no beneficiarse.",
+                "Conector 12VHPWR (450W) — verificar seating completo; derretimientos reportados en seating parcial.",
+            ],
+            "sve2": [
+                "VLEN variable rompe ABI si se asume vector length fijo — usar `svcntb()`/`svcnth()` en runtime.",
+                "Instrucciones SVE2 predichadas requieren registro de predicado válido — `pfalse()`/`ptrue()` initialization crítica.",
+                "Streaming SVE mode (ZFA/ZFD) cambia longitud vectorial — guardar/restaurar estado en context switch.",
+            ],
+            "risc-v": [
+                "RVV VLEN configurable por implementación — binarios no portables si usan ensamblador vectorial directo.",
+                "Extensiones cripto (Zvkn, Zvksed, etc.) opcionales — verificar `misa` CSR antes de usar.",
+                "Modelo de memoria RISC-V (RVWMO) más débil que x86/ARM — barreras `fence` necesarias en código concurrente.",
+            ],
+        }
+        
+        for ent in entidades_lista:
+            for key, gs in gotchas_map.items():
+                if key in ent:
+                    gotchas.extend(gs)
+        
+        # Gotchas genéricos
+        if any("version" in h.tipo for h in hallazgos):
+            gotchas.append(
+                "Versiones reportadas pueden ser de pre-lanzamiento (ES/QS samples) — verificar stepping/revisión final en producción."
+            )
+        
+        fuentes_unicas = len(set(h.fuente for h in hallazgos))
+        if fuentes_unicas == 1:
+            gotchas.append(
+                "Una sola fuente: especificaciones pueden ser marketing vs silicon real. Buscar reviews independientes (AnandTech, Chips and Cheese, etc.)."
+            )
+        
+        return gotchas[:5]
+    
+    def _generar_referencias_autorizadas(
+        self, 
+        entidades: Dict[str, List[HallazgoTecnico]], 
+        hallazgos: List[HallazgoTecnico]
+    ) -> List[str]:
+        """Genera referencias a documentación oficial autoritativa."""
+        referencias = []
+        entidades_lista = [e.lower() for e in entidades.keys() if e != "General"]
+        
+        refs_map = {
+            "armv9": [
+                "ARM Architecture Reference Manual ARMv9-A (ARM DDI 0601) — especificación autoritativa completa.",
+                "ARM Security Center: MTE, CCA, SVE2 developer guides — developer.arm.com/architectures",
+                "Linux Kernel Documentation: arm64/mte.rst, arm64/cca.rst — implementación OS.",
+            ],
+            "mte": [
+                "ARM MTE Technical Documentation (102420) — developer.arm.com/documentation/102420",
+                "HWASan/MTE Integration Guide — clang.llvm.org/docs/HardwareAssistedAddressSanitizer.html",
+            ],
+            "cca": [
+                "ARM Confidential Compute Architecture — developer.arm.com/architectures/security-features/confidential-compute-architecture",
+                "Realm Management Monitor (RMM) Specification — github.com/ARM-software/realm-management-monitor",
+            ],
+            "ada lovelace": [
+                "NVIDIA Ada Lovelace Architecture Whitepaper — nvidia.com/en-us/data-center/ada-lovelace-architecture",
+                "CUDA Programming Guide: FP8 Tensor Cores, SER, Optical Flow SDK — docs.nvidia.com/cuda",
+            ],
+            "risc-v": [
+                "RISC-V Vector Extension (RVV) 1.0 Spec — github.com/riscv/riscv-v-spec",
+                "RISC-V ISA Manual Volume I & II — riscv.org/technical/specifications",
+            ],
+        }
+        
+        for ent in entidades_lista:
+            for key, refs in refs_map.items():
+                if key in ent:
+                    referencias.extend(refs)
+        
+        # Referencias genéricas de fuentes encontradas
+        fuentes = set(h.fuente for h in hallazgos)
+        for fuente in sorted(fuentes):
+            if fuente not in ["desconocida", "duckduckgo_mock"]:
+                referencias.append(f"Fuente consultada: {fuente} — verificar especificación oficial en sitio del vendedor.")
+        
+        return referencias[:6]
+    
+    def _generar_informe_con_expansion(
+        self,
+        query: str,
+        resultados: List[Dict[str, Any]],
+        evaluacion_global: Optional[Dict[str, Any]] = None
+    ) -> "InformeProfundo":
+        """
+        Versión extendida de procesar_resultados que incluye expansión contextual
+        para consultas altamente técnicas.
+        """
+        # Procesamiento estándar
+        informe_base = self.procesar_resultados(query, resultados, evaluacion_global)
+        
+        # Verificar si requiere expansión contextual
+        if self._es_consulta_altamente_tecnica(query, informe_base.hallazgos_tecnicos):
+            logger.info(f"DeepSynthesizer: Activando expansión contextual para query técnica: {query[:60]}")
+            expansion = self._generar_expansion_contextual(query, informe_base.hallazgos_tecnicos, informe_base.metricas_procesamiento.get("corpus", ""))
+            
+            # Integrar expansión en el análisis detallado
+            analisis_extendido = informe_base.analisis_detallado + "\n\n" + expansion
+            
+            return InformeProfundo(
+                query=informe_base.query,
+                introduccion=informe_base.introduccion,
+                hallazgos_tecnicos=informe_base.hallazgos_tecnicos,
+                analisis_detallado=analisis_extendido,
+                conclusiones=informe_base.conclusiones,
+                advertencias=informe_base.advertencias,
+                metricas_procesamiento={
+                    **informe_base.metricas_procesamiento,
+                    "expansion_contextual_activada": True,
+                    "longitud_expansion": len(expansion),
+                },
+                grafo_consistencia=informe_base.grafo_consistencia
+            )
+        
+        return informe_base
 
 
 def crear_deep_synthesizer(min_confianza: float = 0.3) -> DeepSynthesizer:

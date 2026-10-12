@@ -1,2 +1,2 @@
-from src.models.contracts import IDENTIDAD_DETERMINISTA
-from src.models.contracts import EstadoPipeline, PipelineRequest, PipelineResult
+from .contracts import IDENTIDAD_DETERMINISTA
+from .contracts import EstadoPipeline, PipelineRequest, PipelineResult

@@ -94,6 +94,51 @@ class ExternalToolExecutor:
     MAX_RETRIES = 3
     BASE_DELAY = 1.0  # segundos
     
+    # ============================================================
+    # WHITELIST DE DOMINIOS DE CONFIANZA (Lista Blanca)
+    # ============================================================
+    # Dominios oficiales, corporativos, académicos y técnicos de alta autoridad
+    # Estos dominios tienen prioridad en búsquedas y pasan filtros de confianza
+    DOMINIOS_CONFIABLES = {
+        # Oficiales y gubernamentales
+        "github.com", "gitlab.com", "bitbucket.org",
+        "stackoverflow.com", "stackexchange.com",
+        "wikipedia.org", "wikimedia.org",
+        "python.org", "docs.python.org",
+        "pypi.org", "npmjs.com",
+        "docker.com", "docker.io",
+        "kubernetes.io", "cncf.io",
+        "apache.org", "mozilla.org",
+        "google.com", "developers.google.com",
+        "microsoft.com", "docs.microsoft.com",
+        "aws.amazon.com", "azure.microsoft.com",
+        "cloud.google.com",
+        # ARM y arquitectura
+        "arm.com", "developer.arm.com",
+        # Académicos
+        "arxiv.org", "doi.org", "scholar.google.com",
+        "pubmed.ncbi.nlm.nih.gov", "ieee.org",
+        # Noticias técnicas confiables
+        "theverge.com", "arstechnica.com",
+        "techcrunch.com", "wired.com",
+        "zdnet.com", "cnet.com",
+        # NVIDIA
+        "nvidia.com", "developer.nvidia.com",
+        "docs.nvidia.com",
+        # RISC-V
+        "riscv.org", "github.com",
+        "sifive.com", "riscv.org",
+        # Hardware técnico
+        "anandtech.com", "tomshardware.com",
+        "phoronix.com", "servethehome.com",
+        # Linux y kernel
+        "kernel.org", "lwn.net",
+        "phoronix.com",
+        # Rust y lenguajes
+        "rust-lang.org", "doc.rust-lang.org",
+        "golang.org", "pkg.go.dev",
+    }
+    
     # User-Agent de navegador real actualizado
     USER_AGENT = (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -139,6 +184,92 @@ class ExternalToolExecutor:
         self._herramientas = {
             "web_search": self._ejecutar_busqueda_web,
         }
+    
+    def _refinar_query_con_whitelist(self, query: str) -> str:
+        """
+        Refina la query original añadiendo operadores site: para dominios de confianza.
+        Esto prioriza resultados de dominios oficiales, corporativos, académicos y técnicos.
+        
+        Args:
+            query: Consulta original del usuario
+            
+        Returns:
+            Query refinada con operadores site: para dominios de confianza
+        """
+        # Extraer términos clave de la query (excluyendo stopwords comunes)
+        stopwords = {'de', 'la', 'el', 'en', 'y', 'a', 'un', 'una', 'por', 'para', 'con', 'sin', 'sobre', 'entre', 'hacia', 'desde', 'hasta', 'bajo', 'sobre', 'tras', 'durante', 'mediante', 'según', 'con', 'del', 'al', 'lo', 'las', 'los', 'las', 'una', 'unos', 'unas', 'este', 'esta', 'estos', 'estas', 'ese', 'esa', 'esos', 'esas', 'aquí', 'allí', 'aquello', 'aquella', 'aquellos', 'aquellas'}
+        
+        palabras = query.lower().split()
+        terminos_clave = [p for p in palabras if p not in stopwords and len(p) > 2]
+        
+        if not terminos_clave:
+            return query
+        
+        # Mapeo de palabras clave a dominios prioritarios
+        mapeo_dominios = {
+            # ARM
+            'arm': ['developer.arm.com', 'arm.com'],
+            'armv9': ['developer.arm.com', 'arm.com'],
+            'mte': ['developer.arm.com', 'arm.com'],
+            'cca': ['developer.arm.com', 'arm.com'],
+            'sve2': ['developer.arm.com', 'arm.com'],
+            'rme': ['developer.arm.com', 'arm.com'],
+            # RISC-V
+            'riscv': ['riscv.org', 'github.com', 'sifive.com'],
+            'risc-v': ['riscv.org', 'github.com'],
+            'rvv': ['riscv.org', 'github.com', 'sifive.com'],
+            'vector extension': ['riscv.org', 'github.com', 'sifive.com'],
+            # NVIDIA
+            'nvidia': ['nvidia.com', 'developer.nvidia.com'],
+            'rtx': ['nvidia.com', 'developer.nvidia.com'],
+            'geforce': ['nvidia.com', 'developer.nvidia.com'],
+            'ada lovelace': ['nvidia.com', 'developer.nvidia.com'],
+            'cuda': ['developer.nvidia.com', 'nvidia.com'],
+            'tensor core': ['developer.nvidia.com', 'nvidia.com'],
+            'cuda cores': ['developer.nvidia.com', 'nvidia.com'],
+            # RISC-V
+            'riscv': ['riscv.org', 'github.com', 'sifive.com'],
+            'rvv': ['riscv.org', 'github.com', 'sifive.com'],
+            # Python
+            'python': ['python.org', 'docs.python.org', 'realpython.com'],
+            # Rust
+            'rust': ['rust-lang.org', 'doc.rust-lang.org'],
+            # Go
+            'go': ['golang.org', 'pkg.go.dev'],
+            'golang': ['golang.org', 'pkg.go.dev'],
+            # Linux/Kernel
+            'linux': ['kernel.org', 'lwn.net'],
+            'kernel': ['kernel.org', 'lwn.net'],
+            # Hardware
+            'gpu': ['nvidia.com', 'amd.com', 'anandtech.com'],
+            'cpu': ['intel.com', 'amd.com', 'anandtech.com'],
+            'especificaciones': ['anandtech.com', 'tomshardware.com'],
+            'specs': ['anandtech.com', 'tomshardware.com'],
+        }
+        
+        # Buscar dominios relevantes según términos en la query
+        dominios_prioritarios = []
+        query_lower = query.lower()
+        
+        for termino in terminos_clave:
+            if termino in mapeo_dominios:
+                for dominio in mapeo_dominios[termino]:
+                    if dominio not in dominios_prioritarios:
+                        dominios_prioritarios.append(dominio)
+        
+        # Si no hay dominios específicos, usar los genéricos de alta confianza
+        if not dominios_prioritarios:
+            dominios_prioritarios = ['github.com', 'developer.arm.com', 'nvidia.com', 'python.org', 'rust-lang.org']
+        
+        # Limitar a máximo 3 dominios para no sobrecargar la query
+        dominios_seleccionados = dominios_prioritarios[:3]
+        
+        # Construir query refinada con operadores site:
+        sitio_operadores = ' OR '.join([f'site:{dominio}' for dominio in dominios_seleccionados])
+        query_refinada = f"{query} ({sitio_operadores})"
+        
+        logger.info(f"Query refinada con whitelist: {query_refinada}")
+        return query_refinada
     
     def ejecutar(
         self, 
@@ -193,17 +324,21 @@ class ExternalToolExecutor:
         Ejecuta búsqueda real en DuckDuckGo con análisis de resultados.
         
         Flujo:
-        1. Request a DuckDuckGo HTML (con reintentos y fallback a Lite)
-        2. Parseo de resultados (título, URL, snippet)
-        3. Fetch opcional de contenido completo de top resultados
-        4. Síntesis ejecutiva de hallazgos
-        5. Retorno estructurado
+        1. Refinar query con whitelist de dominios de confianza
+        2. Request a DuckDuckGo HTML (con reintentos y fallback a Lite)
+        3. Parseo de resultados (título, URL, snippet)
+        4. Fetch opcional de contenido completo de top resultados
+        5. Síntesis ejecutiva de hallazgos
+        6. Retorno estructurado
         """
         start_time = time.time()
         
         try:
-            # 1. Request a DuckDuckGo con reintentos y fallback
-            resultados_crudos = self._buscar_con_reintentos(query)
+            # 1. Refinar query con whitelist de dominios de confianza
+            query_refinada = self._refinar_query_con_whitelist(query)
+            
+            # 2. Request a DuckDuckGo con reintentos y fallback
+            resultados_crudos = self._buscar_con_reintentos(query_refinada)
             
             if not resultados_crudos:
                 # FALLBACK: Usar datos mock para testing cuando la búsqueda real falla
@@ -211,13 +346,13 @@ class ExternalToolExecutor:
                 return self._generar_resultados_mock(query, contexto, start_time)
             
             # 2. Procesar y enriquecer resultados
-            resultados_procesados = self._procesar_resultados(resultados_crudos, query)
+            resultados_procesados = self._procesar_resultados(resultados_crudos, query_refinada)
             
             # 3. Enriquecer top resultados con contenido completo (opcional)
             resultados_enriquecidos = self._enriquecer_resultados(resultados_procesados)
             
-            # 3. Generar síntesis ejecutiva
-            sintesis = self._generar_sintesis(query, resultados_enriquecidos)
+            # 4. Generar síntesis ejecutiva
+            sintesis = self._generar_sintesis(query_refinada, resultados_enriquecidos)
             
             # 4. Construir respuesta final
             tiempo_ms = int((time.time() - start_time) * 1000)
