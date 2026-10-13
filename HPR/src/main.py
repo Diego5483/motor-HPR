@@ -1,9 +1,110 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException, status
+from pydantic import BaseModel, Field
+from typing import Optional, List, Dict, Any
+from uuid import UUID, uuid4
+from datetime import datetime
+
 from .schemas import CommunicationQuerySchema
 from .core.security_agent import verify_security_guard
+from .security_agent import HPRSecurityEngine
+from .core.session_manager import SessionManager, create_session_manager
+from .core.task_orchestrator import (
+    TaskOrchestrator, create_task_orchestrator,
+    OrchestratorInput, OrchestratorOutput,
+    IntentSchema, IntentCategory, IntentComplexity, IntentPriority,
+    create_intent_schema
+)
+from .models.contracts import (
+    ConversationTurn, TurnRole, TurnType, SessionContext,
+    StructuredResult, Decision
+)
 
 # Inicialización de la API del motor HPR
 app = FastAPI(title="Motor HPR - Arquitectura Híbrida", version="1.0.0")
+
+# ---------------------------------------------------------------------------
+# Gestores globales (inicialización lazy para evitar dependencias circulares)
+# ---------------------------------------------------------------------------
+_session_manager: Optional[SessionManager] = None
+_task_orchestrator: Optional[TaskOrchestrator] = None
+_security_engine: Optional[HPRSecurityEngine] = None
+
+
+def get_session_manager() -> SessionManager:
+    """Obtiene o crea el gestor de sesiones singleton."""
+    global _session_manager
+    if _session_manager is None:
+        _session_manager = create_session_manager()
+    return _session_manager
+
+
+def get_task_orchestrator() -> TaskOrchestrator:
+    """Obtiene o crea el orquestador de tareas singleton."""
+    global _task_orchestrator
+    if _task_orchestrator is None:
+        _task_orchestrator = create_task_orchestrator()
+    return _task_orchestrator
+
+
+def get_security_engine() -> HPRSecurityEngine:
+    """Obtiene o crea el motor de seguridad singleton."""
+    global _security_engine
+    if _security_engine is None:
+        _security_engine = HPRSecurityEngine()
+    return _security_engine
+
+
+# ---------------------------------------------------------------------------
+# Esquemas Pydantic para endpoints
+# ---------------------------------------------------------------------------
+
+class ChatRequest(BaseModel):
+    """Request para el endpoint de chat autónomo."""
+    session_id: Optional[UUID] = Field(None, description="ID de sesión existente (opcional, se crea si no existe)")
+    message: str = Field(..., min_length=1, max_length=8000, description="Mensaje del usuario")
+    use_voice: bool = Field(False, description="Indica si el mensaje proviene de entrada de voz")
+    language: Optional[str] = Field("es", description="Idioma detectado/seleccionado")
+
+
+class ChatResponse(BaseModel):
+    """Response del endpoint de chat autónomo."""
+    session_id: UUID = Field(..., description="ID de la sesión")
+    turn_id: UUID = Field(..., description="ID del turno del asistente")
+    response: str = Field(..., description="Respuesta del asistente")
+    session_context: Optional[Dict[str, Any]] = Field(None, description="Contexto actual de la sesión")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadatos adicionales")
+
+
+class OrchestrateRequest(BaseModel):
+    """Request para el endpoint de orquestación técnica."""
+    session_id: UUID = Field(..., description="ID de sesión obligatoria")
+    intent_summary: str = Field(..., min_length=1, max_length=500, description="Resumen de la intención")
+    intent_category: str = Field(default="analysis", description="Categoría: analysis, synthesis, verification, decision, planning, execution, clarification, monitoring")
+    intent_complexity: str = Field(default="simple", description="Complejidad: atomic, simple, moderate, complex")
+    intent_priority: str = Field(default="normal", description="Prioridad: low, normal, high, critical")
+    constraints: List[str] = Field(default_factory=list, description="Restricciones duras")
+    success_criteria: List[str] = Field(default_factory=list, description="Criterios de éxito")
+    dry_run: bool = Field(default=False, description="Solo planificar, no ejecutar")
+
+
+class OrchestrateResponse(BaseModel):
+    """Response del endpoint de orquestación técnica."""
+    session_id: UUID
+    task_id: Optional[UUID] = None
+    success: bool
+    phase_reached: str
+    subtasks_planned: int
+    subtasks_executed: int
+    final_result: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None
+    warnings: List[str] = Field(default_factory=list)
+    dag_structure: Optional[List[Dict[str, Any]]] = None
+    metrics: Dict[str, Any] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
 
 @app.get("/")
 def read_root():
@@ -11,7 +112,13 @@ def read_root():
         "estado": "en línea",
         "modulo": "main",
         "mensaje": "El servidor del motor HPR está transmitiendo correctamente.",
+        "endpoints": {
+            "chat": "/api/v1/chat (POST) - Chat autónomo con memoria de sesión",
+            "orchestrate": "/api/v1/orchestrate (POST) - Orquestación técnica manual",
+            "communications": "/api/v1/communications/query (GET) - Consulta legacy",
+        }
     }
+
 
 @app.get("/api/v1/communications/query")
 async def communications_query(
@@ -19,8 +126,8 @@ async def communications_query(
     security_check: bool = Depends(verify_security_guard),
 ):
     """
-    Endpoint para procesar consultas de comunicación en el motor HPR utilizando Pydantic
-    y el agente de seguridad antiphishing.
+    Endpoint legacy para procesar consultas de comunicación en el motor HPR
+    utilizando Pydantic y el agente de seguridad antiphishing.
     """
     return {
         "query": params.query,
@@ -28,3 +135,306 @@ async def communications_query(
         "status": "procesado seguro",
         "resultados": [],
     }
+
+
+@app.post("/api/v1/chat", response_model=ChatResponse)
+async def chat_endpoint(
+    request: ChatRequest,
+    security_check: bool = Depends(verify_security_guard),
+):
+    """
+    Endpoint de chat autónomo con memoria de sesión conversacional.
+    
+    Flujo:
+    1. Obtener/crear sesión conversacional
+    2. Añadir turno de usuario
+    3. Procesar a través del motor de seguridad (Sovereign Gate + Nexus Root)
+    4. Añadir turno de asistente con respuesta
+    5. Retornar respuesta + contexto de sesión actualizado
+    
+    Diseñado para la Pestaña 1: "Chat Autónomo / Natural"
+    """
+    session_mgr = get_session_manager()
+    security_engine = get_security_engine()
+    
+    # 1. Obtener o crear sesión
+    if request.session_id:
+        session = session_mgr.get_session(request.session_id)
+        if not session:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Sesión no encontrada: {request.session_id}"
+            )
+    else:
+        session = session_mgr.create_session(
+            initial_query=request.message,
+            title=f"Chat {datetime.utcnow().strftime('%Y-%m-%d %H:%M')}",
+        )
+    
+    # 2. Añadir turno de usuario
+    user_turn = session_mgr.add_turn(
+        session_id=session.id,
+        role=TurnRole.USER,
+        content=request.message,
+        turn_type=TurnType.QUERY,
+    )
+    
+    if not user_turn:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No se pudo crear el turno de usuario (límites de sesión excedidos)"
+        )
+    
+    # 3. Procesar a través del motor de seguridad (pipeline completo)
+    try:
+        response = security_engine.process_pipeline(
+            payload=request.message,
+            state={"identity": "HPR-CORE-DETERMINISTIC"},
+            truth=[],
+        )
+        assistant_response = response.get("estado", "Sin respuesta")
+        
+        # Extraer conocimiento si está disponible
+        knowledge = response.get("conocimiento", "")
+        if knowledge:
+            assistant_response = f"{assistant_response}\n\n{knowledge}"
+            
+    except Exception as e:
+        assistant_response = f"BLOQUEO DE SEGURIDAD: {str(e)}"
+    
+    # 4. Añadir turno de asistente
+    assistant_turn = session_mgr.add_turn(
+        session_id=session.id,
+        role=TurnRole.ASSISTANT,
+        content=assistant_response,
+        turn_type=TurnType.QUERY,
+    )
+    
+    if not assistant_turn:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No se pudo crear el turno de asistente"
+        )
+    
+    # 5. Obtener contexto de sesión actualizado para el frontend
+    session_context = session_mgr.get_session_context(session.id)
+    context_dict = None
+    if session_context:
+        context_dict = {
+            "current_turn_number": session_context.current_turn_number,
+            "active_topics": session_context.active_topics,
+            "unresolved_ambiguities": session_context.unresolved_ambiguities,
+            "pending_references_count": len(session_context.pending_references),
+            "last_user_turn": session_context.last_user_turn.content if session_context.last_user_turn else None,
+            "last_assistant_turn": session_context.last_assistant_turn.content[:200] if session_context.last_assistant_turn else None,
+        }
+    
+    # 6. Retornar respuesta estructurada
+    return ChatResponse(
+        session_id=session.id,
+        turn_id=assistant_turn.id,
+        response=assistant_response,
+        session_context=context_dict,
+        metadata={
+            "security_status": response.get("estado", "unknown") if 'response' in locals() else "error",
+            "language": request.language,
+            "use_voice": request.use_voice,
+            "turn_number": user_turn.turn_number,
+        }
+    )
+
+
+@app.post("/api/v1/orchestrate", response_model=OrchestrateResponse)
+async def orchestrate_endpoint(
+    request: OrchestrateRequest,
+    security_check: bool = Depends(verify_security_guard),
+):
+    """
+    Endpoint de orquestación técnica manual para auditoría y control de DAGs.
+    
+    Flujo:
+    1. Validar sesión existente
+    2. Construir IntentSchema desde parámetros explícitos
+    3. Obtener contexto de sesión y evidencia disponible
+    4. Ejecutar TaskOrchestrator.process_intent()
+    6. Retornar resultado completo con DAG, métricas y estado
+    
+    Diseñado para la Pestaña 2: "Motor Técnico / Manual"
+    """
+    session_mgr = get_session_manager()
+    orchestrator = get_task_orchestrator()
+    
+    # 1. Validar sesión
+    session = session_mgr.get_session(request.session_id)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Sesión no encontrada: {request.session_id}"
+        )
+    
+    # 2. Construir IntentSchema desde request
+    try:
+        category = IntentCategory(request.intent_category)
+        complexity = IntentComplexity(request.intent_complexity)
+        priority = IntentPriority(request.intent_priority)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Parámetro inválido: {str(e)}"
+        )
+    
+    # Usar el último turno de la sesión como source_turn_id
+    source_turn_id = session.turns[-1].id if session.turns else uuid4()
+    
+    intent = create_intent_schema(
+        category=category,
+        summary=request.intent_summary,
+        session_id=request.session_id,
+        source_turn_id=source_turn_id,
+        complexity=complexity,
+        priority=priority,
+        description=f"Intención técnica manual: {request.intent_summary}",
+        constraints=request.constraints,
+        success_criteria=request.success_criteria,
+    )
+    
+    # 3. Obtener contexto de sesión y recursos disponibles
+    session_context = session_mgr.get_session_context(request.session_id)
+    if not session_context:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="No se pudo obtener contexto de sesión"
+        )
+    
+    # Obtener evidencia disponible de la sesión (simplificado)
+    available_evidence = []  # En implementación completa, extraer de turnos previos
+    previous_results = []    # En implementación completa, extraer StructuredResults previos
+    
+    # Último turno para el input
+    last_turn = session.turns[-1] if session.turns else None
+    if not last_turn:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La sesión debe tener al menos un turno"
+        )
+    
+    # 4. Construir OrchestratorInput y ejecutar
+    input_data = OrchestratorInput(
+        intent=intent,
+        session_context=session_context,
+        turn=last_turn,
+        available_evidence=available_evidence,
+        previous_results=previous_results,
+        force_replan=False,
+        dry_run=request.dry_run,
+    )
+    
+    output: OrchestratorOutput = orchestrator.process_intent(input_data)
+    
+    # 5. Preparar estructura del DAG para visualización
+    dag_structure = None
+    if output.task:
+        dag_structure = []
+        for st in output.task.subtasks:
+            dag_structure.append({
+                "id": str(st.id),
+                "name": st.name,
+                "type": st.type.value,
+                "status": st.status.value,
+                "depends_on": [str(d) for d in st.depends_on],
+                "description": st.description,
+            })
+    
+    # 6. Retornar respuesta completa
+    return OrchestrateResponse(
+        session_id=request.session_id,
+        task_id=output.task.id if output.task else None,
+        success=output.success,
+        phase_reached=output.phase_reached.value,
+        subtasks_planned=output.total_subtasks_planned,
+        subtasks_executed=output.total_subtasks_executed,
+        final_result=output.final_result.model_dump() if output.final_result else None,
+        error_message=output.error_message,
+        warnings=output.warnings,
+        dag_structure=dag_structure,
+        metrics={
+            "tokens_used": output.tokens_used,
+            "latency_ms": output.latency_ms,
+            "started_at": output.started_at.isoformat() if output.started_at else None,
+            "completed_at": output.completed_at.isoformat() if output.completed_at else None,
+        }
+    )
+
+
+@app.get("/api/v1/sessions/{session_id}")
+async def get_session(
+    session_id: UUID,
+    security_check: bool = Depends(verify_security_guard),
+):
+    """Obtiene una sesión por ID con su historial completo."""
+    session_mgr = get_session_manager()
+    session = session_mgr.get_session(session_id)
+    
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Sesión no encontrada: {session_id}"
+        )
+    
+    return session.model_dump(mode='json')
+
+
+@app.get("/api/v1/sessions/{session_id}/context")
+async def get_session_context(
+    session_id: UUID,
+    security_check: bool = Depends(verify_security_guard),
+):
+    """Obtiene el contexto actual de una sesión para el frontend."""
+    session_mgr = get_session_manager()
+    context = session_mgr.get_session_context(session_id)
+    
+    if not context:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Sesión no encontrada: {session_id}"
+        )
+    
+    return context.model_dump(mode='json')
+
+
+@app.delete("/api/v1/sessions/{session_id}")
+async def delete_session(
+    session_id: UUID,
+    security_check: bool = Depends(verify_security_guard),
+):
+    """Elimina (archiva) una sesión."""
+    session_mgr = get_session_manager()
+    success = session_mgr.delete_session(session_id)
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Sesión no encontrada: {session_id}"
+        )
+    
+    return {"status": "deleted", "session_id": str(session_id)}
+
+
+@app.get("/api/v1/sessions")
+async def list_sessions(
+    status: Optional[str] = None,
+    limit: int = 50,
+    security_check: bool = Depends(verify_security_guard),
+):
+    """Lista sesiones con filtros opcionales."""
+    session_mgr = get_session_manager()
+    session_status = None
+    if status:
+        try:
+            from .models.contracts import SessionStatus
+            session_status = SessionStatus(status)
+        except ValueError:
+            pass
+    
+    sessions = session_mgr.list_sessions(status=session_status, limit=limit)
+    return [s.model_dump(mode='json') for s in sessions]
