@@ -1,14 +1,17 @@
 /* ==========================================================================
  * Motor HPR — Interfaz Dual · app.js
- * Etapa B: estructura visual base.
- * Conexión real del chat/audio: Etapa C · Motor técnico: Etapa D.
+ * Etapa C: conexión real del chat (POST /api/v1/chat) y gestión de audio.
+ * Motor técnico real (triggers, telemetría, traza): Etapa D.
  *
  * Reglas de operación (Constitución HPR):
  * - Sin datos simulados: toda acción que dependa del backend informa su
  *   estado real. La autoridad y las validaciones residen en el backend
  *   (NEXUS-ROOT · EPSILON-WALL · SOVEREIGN-GATE).
- * - Ejecución 100% local (S1, S2, E1, E2, E5): este archivo no contacta
- *   servicios externos; la única sonda es al propio backend local.
+ * - Ejecución 100% local (S1, S2, E1, E2, E5): este archivo solo contacta
+ *   al backend local (127.0.0.1). Excepción divulgada: la captación por
+ *   micrófono usa el motor de voz del navegador, que en Chromium/Edge
+ *   transita por el servicio del proveedor (activación explícita del
+ *   usuario). La síntesis de voz es 100% local (speechSynthesis).
  * ========================================================================== */
 'use strict';
 
@@ -181,13 +184,94 @@ function clearEvents() {
 }
 $('clear-events').addEventListener('click', clearEvents);
 
-/* ------------------------- Chat (conexión real: Etapa C) ------------------------- */
+/* ------------------------- Cliente API · canal autónomo -------------------------
+ * Contrato real del backend (HPR/src/main.py):
+ *   POST /api/v1/chat  {session_id?, message, use_voice, language}
+ * El texto viaja además como parámetro ?query= para que el guardia
+ * de seguridad del endpoint (verify_security_guard) lo inspeccione:
+ * una coincidencia con patrones de phishing recibe 403 visible.
+ * El payload replica al HPRClient probado (dual_interface.py).
+ * ------------------------------------------------------------------------- */
+const CHAT_TIMEOUT_MS = 20000;
+
+class ApiError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+async function apiChat({ message, sessionId, useVoice, language = 'es' }) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
+  const started = performance.now();
+  try {
+    // ?query= activa el guardia anti-phishing del endpoint (contrato existente).
+    const url = '/api/v1/chat?query=' + encodeURIComponent(message);
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        use_voice: !!useVoice,
+        language,
+        ...(sessionId ? { session_id: sessionId } : {}),
+      }),
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+    const latency = Math.round(performance.now() - started);
+    if (!resp.ok) {
+      let detail = 'HTTP ' + resp.status;
+      try {
+        const err = await resp.json();
+        if (err && err.detail) detail = String(err.detail);
+      } catch (_) { /* sin detalle legible */ }
+      throw new ApiError(detail, resp.status);
+    }
+    return { data: await resp.json(), latency };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* ------------------------- Sesión y estado del chat -------------------------
+ * sessionId: null → el próximo envío crea una sesión nueva en el
+ * backend (creación lazy, igual que el HPRClient). chatBusy protege
+ * contra doble envío (§10). voiceOrigin marca use_voice=true cuando
+ * el texto proviene de dictado.                                    */
+let sessionId = null;
+let chatBusy = false;
+let voiceOrigin = false;
+let programmaticEdit = false;
 let attachedFiles = [];
 
+function setSessionId(id) {
+  sessionId = id || null;
+  const pill = $('session-id');
+  if (pill) pill.textContent = sessionId ? sessionId.slice(0, 8) : 'sin sesión';
+}
+
+function setSendEnabled(enabled) {
+  const btn = $('send-button');
+  if (btn) btn.disabled = !enabled;
+}
+
+function setComposerText(text) {
+  programmaticEdit = true;
+  $('prompt').value = text;
+  programmaticEdit = false;
+  autoResize();
+}
+
+/* ------------------------- Renderizado de mensajes ------------------------- */
 function appendMessage(role, text, options = {}) {
   const messages = $('messages');
   const msg = document.createElement('div');
-  msg.className = 'message ' + role;
+  msg.className = 'message ' + role +
+    (options.pending ? ' pending' : '') +
+    (options.error ? ' error' : '');
   msg.dataset.role = role;
   const av = document.createElement('div');
   av.className = 'avatar';
@@ -202,31 +286,38 @@ function appendMessage(role, text, options = {}) {
   const time = document.createElement('span');
   time.textContent = options.label || stamp();
   meta.appendChild(time);
+  if (options.turnLabel) {
+    const turn = document.createElement('span');
+    turn.className = 'turn-tag';
+    turn.textContent = options.turnLabel;
+    meta.appendChild(turn);
+  }
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
-  bubble.textContent = text;
+  bubble.textContent = text; // textContent: sanitización (§10)
   main.append(meta, bubble);
   if (role === 'assistant') {
     const actions = document.createElement('div');
     actions.className = 'message-actions';
     const listen = document.createElement('button');
-    listen.className = 'response-audio';
     listen.type = 'button';
+    listen.className = 'response-audio';
     listen.textContent = '▶ Escuchar';
+    listen.title = 'Leer esta respuesta con la voz local del navegador (speechSynthesis)';
     listen.addEventListener('click', () => {
-      showToast('Síntesis de voz: gestión de audio en la Etapa C.');
+      if (HPRVoice.speak(bubble.textContent)) {
+        addEvent('TTS_PLAY', 'Lectura de respuesta iniciada (voz local del navegador).', 'normal');
+      } else {
+        showToast('Síntesis de voz no disponible en este navegador.');
+        addEvent('TTS_UNAVAILABLE', 'speechSynthesis no disponible; la lectura queda deshabilitada.', 'warn');
+      }
     });
     const copy = document.createElement('button');
     copy.type = 'button';
     copy.textContent = '▢ Copiar';
-    copy.addEventListener('click', () => copyText(text));
-    const regen = document.createElement('button');
-    regen.type = 'button';
-    regen.textContent = '↻ Regenerar';
-    regen.addEventListener('click', () => {
-      showToast('Regenerar: requiere backend conectado (Etapa C).');
-    });
-    actions.append(listen, copy, regen);
+    copy.title = 'Copiar el texto de esta respuesta';
+    copy.addEventListener('click', () => copyText(bubble.textContent));
+    actions.append(listen, copy);
     main.append(actions);
   }
   msg.append(av, main);
@@ -235,41 +326,157 @@ function appendMessage(role, text, options = {}) {
   return msg;
 }
 
-function sendMessage() {
+/* Actualiza un mensaje existente (pendiente → respuesta real o error). */
+function updateMessage(msgEl, text, options = {}) {
+  if (!msgEl) return;
+  msgEl.classList.toggle('pending', !!options.pending);
+  msgEl.classList.toggle('error', !!options.error);
+  const bubble = msgEl.querySelector('.bubble');
+  if (bubble) bubble.textContent = text;
+  const meta = msgEl.querySelector('.message-meta');
+  if (meta && options.turnLabel) {
+    const prev = meta.querySelector('.turn-tag');
+    if (prev) prev.remove();
+    const turn = document.createElement('span');
+    turn.className = 'turn-tag';
+    turn.textContent = options.turnLabel;
+    meta.appendChild(turn);
+  }
+  if (options.onRetry) {
+    const actions = msgEl.querySelector('.message-actions');
+    if (actions && !actions.querySelector('.retry')) {
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'retry';
+      retry.textContent = '↻ Reintentar';
+      retry.title = 'Reenviar este mensaje al backend local';
+      retry.addEventListener('click', options.onRetry);
+      actions.appendChild(retry);
+    }
+  }
+}
+
+/* Envío real al backend. Flujo: eco de la entrada → petición
+ * POST /api/v1/chat → renderizado de la respuesta real.        */
+async function sendMessage() {
+  if (chatBusy) return; // protección contra doble envío (§10)
   const box = $('prompt');
   const text = box.value.trim();
   if (!text && !attachedFiles.length) return;
   if (!text && attachedFiles.length) {
-    showToast('Adjuntos detectados: su contenido se procesa con la conexión real (Etapa C). Escribí una instrucción para continuar.');
+    showToast('Adjuntos detectados: el backend no consume archivos. Escribí una instrucción para continuar.');
     return;
   }
-  appendMessage('user', text); // eco fiel de tu propia entrada
+  chatBusy = true;
+  setSendEnabled(false);
+  const useVoice = voiceOrigin;
+  voiceOrigin = false;
+  const names = attachedFiles.slice();
+  attachedFiles = [];
+  $('file-input').value = '';
+  $('file-chip').classList.remove('show');
+  $('file-chip').textContent = '';
+  appendMessage('user', text, {
+    label: useVoice ? 'dictado · ' + stamp() : undefined,
+  });
   box.value = '';
   box.style.height = 'auto';
-  const names = attachedFiles.slice();
   if (names.length) {
-    addEvent('ATTACHMENT_UI', names.length + ' archivo(s) adjuntos; contenido no procesado hasta la Etapa C.', 'warn');
-    attachedFiles = [];
-    $('file-input').value = '';
-    $('file-chip').classList.remove('show');
-    $('file-chip').textContent = '';
+    addEvent('ATTACHMENT_UI', names.length + ' archivo(s) adjuntos; el backend no los procesa (no soportado).', 'warn');
   }
-  addEvent('CHAT_INPUT', 'Entrada conversacional registrada (' + text.length + ' caracteres); respuesta real pendiente (Etapa C).', 'warn');
-  showToast('Backend no conectado: la respuesta real llega con la Etapa C.');
+  const pending = appendMessage(
+    'assistant',
+    'Solicitando respuesta al motor local…',
+    { label: 'Procesando…', pending: true },
+  );
+  addEvent(
+    'CHAT_SEND',
+    'Enviado a POST /api/v1/chat (' + text.length + ' caracteres' +
+      (useVoice ? ', origen: dictado' : '') + ').',
+    'normal',
+  );
+  try {
+    const { data, latency } = await apiChat({ message: text, sessionId, useVoice });
+    setSessionId(data.session_id);
+    const turnNo = data.metadata && data.metadata.turn_number != null
+      ? 'turno ' + data.metadata.turn_number
+      : '';
+    const turnId = data.turn_id ? ' · ' + String(data.turn_id).slice(0, 8) : '';
+    const turnLabel = (turnNo + turnId).trim() || undefined;
+    updateMessage(
+      pending,
+      data.response || '(el motor respondió sin contenido)',
+      { turnLabel },
+    );
+    addEvent(
+      'CHAT_RESPONSE',
+      'Respuesta real recibida en ' + latency + ' ms (' + (turnNo || 'sin n.º de turno') + ').',
+      'good',
+    );
+    if (data.response && $('autoplay') && $('autoplay').checked) {
+      if (HPRVoice.speak(data.response)) {
+        addEvent('TTS_PLAY', 'Lectura automática de la respuesta (voz local del navegador).', 'normal');
+      }
+    }
+  } catch (err) {
+    const isTransport = !(err instanceof ApiError); // abort / red: no se creó turno
+    let userText;
+    let eventCode;
+    if (err && err.name === 'AbortError') {
+      userText = 'Tiempo de espera agotado (' + (CHAT_TIMEOUT_MS / 1000) +
+        ' s): el backend no respondió. Verificá que el servidor esté corriendo (run.py).';
+      eventCode = 'CHAT_TIMEOUT';
+    } else if (err instanceof ApiError && err.status === 403) {
+      userText = 'Bloqueo de seguridad del motor: ' + err.message;
+      eventCode = 'SECURITY_BLOCK';
+    } else if (err instanceof ApiError && err.status === 404) {
+      setSessionId(null); // la sesión ya no existe: próximo envío crea una nueva
+      userText = 'La sesión ya no existe en el backend (¿fue archivada?); el próximo envío creará una sesión nueva. (' + err.message + ')';
+      eventCode = 'SESSION_EXPIRED';
+    } else if (err instanceof ApiError && err.status === 422) {
+      userText = 'El mensaje no cumple el contrato del backend (1–8000 caracteres).';
+      eventCode = 'CHAT_CONTRACT';
+    } else if (err instanceof ApiError) {
+      userText = 'Error del backend (' + err.status + '): ' + err.message;
+      eventCode = 'CHAT_ERROR';
+    } else {
+      userText = 'No se pudo conectar con el backend local. Verificá que el servidor esté corriendo (run.py).';
+      eventCode = 'BACKEND_OFFLINE';
+      probeBackend();
+    }
+    updateMessage(pending, userText, {
+      error: true,
+      onRetry: isTransport ? () => { box.value = text; sendMessage(); } : null,
+    });
+    addEvent(eventCode, userText, 'warn');
+    showToast(eventCode === 'SECURITY_BLOCK'
+      ? 'Petición bloqueada por el guardia de seguridad.'
+      : 'Error de comunicación con el backend local.');
+  } finally {
+    chatBusy = false;
+    setSendEnabled(true);
+    box.focus();
+  }
 }
 $('send-button').addEventListener('click', sendMessage);
 
-function clearChat() {
+function clearChatView() {
   $('messages').innerHTML = '';
-  addEvent('CHAT_CLEARED', 'Historial visual eliminado localmente.', 'normal');
+}
+
+function clearChat() {
+  if (!confirm('¿Limpiar la conversación? Se elimina el historial de esta vista (local).')) return;
+  clearChatView();
+  addEvent('CHAT_CLEARED', 'Vista de conversación limpiada localmente; la sesión del backend se conserva.', 'normal');
   showToast('Conversación limpiada (vista local).');
 }
 $('clear-chat').addEventListener('click', clearChat);
 
 function newChat() {
-  clearChat();
-  addEvent('SESSION_NEW', 'Sesión real con el backend: se establece en la Etapa C.', 'normal');
-  showToast('Nuevo chat: la sesión real se crea con el backend (Etapa C).');
+  setSessionId(null); // el próximo envío crea una sesión nueva en el backend
+  clearChatView();
+  addEvent('SESSION_NEW', 'Nueva conversación: el próximo envío creará una sesión nueva en el backend.', 'normal');
+  showToast('Nuevo chat: el próximo mensaje crea una sesión nueva.');
 }
 $('new-chat').addEventListener('click', newChat);
 
@@ -305,35 +512,216 @@ function copyMessage(button) {
 }
 $('welcome-copy').addEventListener('click', (e) => copyMessage(e.currentTarget));
 $('welcome-listen').addEventListener('click', () => {
-  showToast('Síntesis de voz: gestión de audio en la Etapa C.');
+  const main = $('welcome-listen').closest('.message-main');
+  const bubble = main ? main.querySelector('.bubble') : null;
+  const text = bubble ? bubble.textContent : '';
+  if (text && HPRVoice.speak(text)) {
+    addEvent('TTS_PLAY', 'Lectura del mensaje de bienvenida (voz local del navegador).', 'normal');
+  } else {
+    showToast('Síntesis de voz no disponible en este navegador.');
+    addEvent('TTS_UNAVAILABLE', 'speechSynthesis no disponible; la lectura queda deshabilitada.', 'warn');
+  }
 });
 
-/* ------------------------- Audio (gestión real: Etapa C) ------------------------- */
-function detectAudioSupport() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const TTS = 'speechSynthesis' in window;
+/* ------------------------- Audio de salida: speechSynthesis -------------------------
+ * SOBERANÍA (S2/E2/E5): la síntesis ocurre íntegramente en la
+ * máquina del usuario; ningún audio se transmite a servicios
+ * remotos. Las voces en español dependen del sistema
+ * operativo/navegador: no se asume una voz concreta (§6.4).  */
+const HPRVoice = {
+  voices: [],
+  speaking: false,
+  init() {
+    if (!('speechSynthesis' in window)) return;
+    const load = () => { this.voices = speechSynthesis.getVoices() || []; };
+    load();
+    if (typeof speechSynthesis.onvoiceschanged !== 'undefined') {
+      speechSynthesis.onvoiceschanged = load;
+    }
+  },
+  spanishVoice() {
+    const es = this.voices.filter((v) => v.lang && v.lang.toLowerCase().startsWith('es'));
+    if (!es.length) return null;
+    return es.find((v) => v.lang.toLowerCase().startsWith('es-uy'))
+        || es.find((v) => v.lang.toLowerCase().startsWith('es-es'))
+        || es[0];
+  },
+  speak(text, { onEnd, onError } = {}) {
+    if (!('speechSynthesis' in window) || !text) return false;
+    speechSynthesis.cancel(); // evita solapamiento de lecturas (§6.4)
+    const utter = new SpeechSynthesisUtterance(text);
+    const voice = this.spanishVoice();
+    if (voice) {
+      utter.voice = voice;
+      utter.lang = voice.lang;
+    } else {
+      utter.lang = 'es-UY';
+    }
+    utter.onstart = () => { this.speaking = true; updateAudioState(); };
+    utter.onend = () => { this.speaking = false; updateAudioState(); if (onEnd) onEnd(); };
+    utter.onerror = (e) => {
+      this.speaking = false;
+      updateAudioState();
+      addEvent('TTS_ERROR', 'La síntesis de voz informó un error (' + (e.error || 'desconocido') + ').', 'warn');
+      if (onError) onError(e.error);
+    };
+    utter.onpause = () => { try { speechSynthesis.resume(); } catch (_) { /* sin cola activa */ } };
+    speechSynthesis.speak(utter);
+    return true;
+  },
+  stop() {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    this.speaking = false;
+    updateAudioState();
+  },
+};
+
+/* Estado de audio: botón Detener y píldora de capacidad con
+ * divulgación honesta de dónde se procesa cada canal.       */
+function refreshVoicePill() {
   const pill = $('voice-support');
   if (!pill) return;
-  if (SR && TTS) pill.textContent = 'Audio disponible*';
-  else if (SR || TTS) pill.textContent = 'Audio parcial / no compatible';
-  else pill.textContent = 'Audio no compatible';
+  const tts = 'speechSynthesis' in window;
+  const sr = HPRDictation.isAvailable();
+  let text;
+  let title;
+  if (tts) {
+    text = this SpeakingPlaceholder; // reemplazado abajo
+  }
+  if (tts) {
+    text = HPRVoice.speaking ? 'Audio: voz local · reproduciendo' : 'Audio: voz local del navegador';
+    title = 'La síntesis de voz es 100% local (speechSynthesis): ningún audio sale de tu máquina.';
+    if (sr) {
+      text += ' · micrófono vía proveedor del navegador';
+      title += ' La captación por micrófono la procesa el motor de voz del navegador y puede transitar por su proveedor (no es local).';
+    }
+  } else {
+    text = 'Audio no compatible';
+    title = 'Este navegador no ofrece síntesis de voz; el chat escrito sigue disponible.';
+  }
+  pill.textContent = text;
+  pill.title = title;
+  pill.dataset.speaking = HPRVoice.speaking ? 'true' : 'false';
 }
 
-$('mic-button').addEventListener('click', () => {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    showToast('Reconocimiento de voz no disponible en este navegador. El chat escrito sigue disponible.');
-    addEvent('MIC_UNAVAILABLE', 'SpeechRecognition no soportado; la captura de texto manual sigue disponible.', 'warn');
-    return;
+function updateAudioState() {
+  const stopBtn = $('stop-audio-button');
+  if (stopBtn) {
+    stopBtn.disabled = !HPRVoice.speaking;
+    stopBtn.setAttribute('aria-disabled', String(!HPRVoice.speaking));
+    stopBtn.title = HPRVoice.speaking
+      ? 'Detener la lectura de voz en curso'
+      : 'No hay reproducción de audio en curso';
   }
-  addEvent('MIC_PENDING', 'Captura de voz: gestión de audio en la Etapa C.', 'warn');
-  showToast('Gestión de voz (micrófono): Etapa C.');
-});
+  refreshVoicePill();
+}
 
 $('stop-audio-button').addEventListener('click', () => {
-  addEvent('TTS_STOP', 'No hay reproducción activa en esta etapa.', 'normal');
-  showToast('Gestión de audio de respuesta: Etapa C.');
+  if (HPRVoice.speaking) {
+    HPRVoice.stop();
+    addEvent('TTS_STOP', 'Lectura de voz detenida por el usuario.', 'normal');
+  }
 });
+
+/* ------------------------- Audio de entrada: micrófono -------------------------
+ * DIVULGACIÓN DE SOBERANÍA: la captación usa el Web Speech API
+ * del navegador. La implementación de Chromium/Edge transita
+ * por el servicio de voz del proveedor (NO es procesamiento
+ * local). Se activa solo por acción explícita del usuario —
+ * nunca al cargar la página (§6.4)— y el chat escrito sigue
+ * siendo el canal primario y totalmente funcional sin él.   */
+const HPRDictation = {
+  recognition: null,
+  listening: false,
+  baseText: '',
+  isAvailable() {
+    return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  },
+  start() {
+    if (this.listening) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      showToast('Reconocimiento de voz no disponible en este navegador. El chat escrito sigue disponible.');
+      addEvent('MIC_UNAVAILABLE', 'SpeechRecognition no soportado; la captura de texto manual sigue disponible.', 'warn');
+      return;
+    }
+    this.baseText = $('prompt').value.trim();
+    const rec = new SR();
+    rec.lang = 'es-UY'; // preferencia es-UY (§6.4); el navegador informa si no la soporta
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.maxAlternatives = 1;
+    rec.onstart = () => {
+      this.listening = true;
+      updateMicUI();
+      addEvent('MIC_START', 'Captura activa: la transcripción aparece en el compositor, es editable y nunca se envía automáticamente.', 'warn');
+      showToast('Escuchando… (la captura la procesa el motor de voz del navegador)');
+    };
+    rec.onresult = (event) => {
+      let transcript = '';
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      const clean = transcript.trim();
+      if (!clean) return;
+      // Transcripción editable en el compositor: se reconstruye
+      // sobre el texto base; el usuario revisa antes de enviar.
+      setComposerText(this.baseText ? this.baseText + ' ' + clean : clean);
+      voiceOrigin = true; // el próximo envío marca use_voice=true
+    };
+    rec.onerror = (event) => {
+      const reasons = {
+        'not-allowed': 'Permiso de micrófono denegado. Habilitá el acceso en el navegador o seguí por texto.',
+        'service-not-allowed': 'El servicio de voz del navegador no está permitido en este contexto.',
+        'audio-capture': 'No se encontró un micrófono funcional.',
+        'no-speech': 'No se detectó voz. Intentá de nuevo hablando con claridad.',
+        'network': 'El motor de voz del navegador no pudo alcanzar su servicio (la transcripción no es local).',
+        'aborted': 'Captura abortada.',
+      };
+      const msg = reasons[event.error] || 'Error de reconocimiento de voz (' + event.error + ').';
+      showToast(msg);
+      addEvent('MIC_ERROR', msg, 'warn');
+    };
+    rec.onend = () => {
+      this.listening = false;
+      updateMicUI();
+    };
+    this.recognition = rec;
+    try {
+      rec.start();
+    } catch (e) {
+      this.listening = false;
+      updateMicUI();
+      showToast('No se pudo iniciar la captura de voz: ' + e.message);
+      addEvent('MIC_ERROR', 'No se pudo iniciar la captura: ' + e.message, 'warn');
+    }
+  },
+  stop() {
+    if (this.recognition && this.listening) {
+      try { this.recognition.stop(); } catch (_) { /* sin captura activa */ }
+    }
+    this.listening = false;
+    updateMicUI();
+  },
+  toggle() {
+    if (this.listening) this.stop(); else this.start();
+  },
+};
+
+function updateMicUI() {
+  const mic = $('mic-button');
+  if (!mic) return;
+  mic.classList.toggle('recording', HPRDictation.listening);
+  mic.setAttribute('aria-pressed', String(HPRDictation.listening));
+  const label = $('mic-label');
+  if (label) label.textContent = HPRDictation.listening ? 'Detener' : 'Hablar';
+  mic.title = HPRDictation.listening
+    ? 'Detener la captura de voz (la transcripción queda editable en el compositor)'
+    : 'Dictar un mensaje (la captura la procesa el motor de voz del navegador; puede transitar por su proveedor)';
+}
+
+$('mic-button').addEventListener('click', () => HPRDictation.toggle());
 
 /* ------------------------- Archivos adjuntos (UI) ------------------------- */
 function filesSelected(files) {
@@ -362,5 +750,7 @@ $('prompt').addEventListener('keydown', (e) => {
 $('prompt').addEventListener('input', autoResize);
 
 /* ------------------------- Inicialización ------------------------- */
-detectAudioSupport();
+HPRVoice.init();
+refreshVoicePill();
+updateMicUI();
 probeBackend();
