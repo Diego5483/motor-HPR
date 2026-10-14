@@ -1,4 +1,7 @@
+import os
+
 from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from uuid import UUID, uuid4
@@ -438,3 +441,17 @@ async def list_sessions(
     
     sessions = session_mgr.list_sessions(status=session_status, limit=limit)
     return [s.model_dump(mode='json') for s in sessions]
+
+
+# ---------------------------------------------------------------------------
+# Interfaz web estática dual (Etapa B)
+# ---------------------------------------------------------------------------
+# Frontend HTML/CSS/JS servido por el propio FastAPI local
+# (127.0.0.1:8000/ui). Ejecución 100% local: sin CDNs ni servicios
+# externos (S1, S2, E1, E2). Las rutas de la API registradas arriba
+# conservan su contrato intacto; este montaje solo sirve archivos
+# estáticos y no altera ningún endpoint.
+# ---------------------------------------------------------------------------
+_WEB_UI_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web_ui")
+if os.path.isdir(_WEB_UI_DIR):
+    app.mount("/ui", StaticFiles(directory=_WEB_UI_DIR, html=True), name="web_ui")

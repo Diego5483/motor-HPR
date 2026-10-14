@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HPR — Interfaz Dual</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><div class="logo">HPR</div><div class="brandname">HPR <small>HYBRID PREDICTIVE REASONING</small></div></div>
+    <nav class="tabs" aria-label="Áreas de trabajo">
+      <button class="tab active" id="tab-tech" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v10H4zM8 19h8M12 15v4"/><path d="m8 9 2 2 4-4"/></svg> MOTOR TÉCNICO</button>
+      <button class="tab" id="tab-chat" type="button"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l-2 2v-6a7.5 7.5 0 1 1 17-3.5Z"/><path d="M8 10h8M8 13h5"/></svg> CHAT AUTÓNOMO</button>
+    </nav>
+    <div class="topright"><span class="sysstate"><i class="dot"></i> UI disponible · backend no conectado</span><span class="demo-tag">PREVIEW / DEMO</span></div>
+  </header>
+  <main class="workspace">
+    <!-- LEFT: TECHNICAL ENGINE -->
+    <section class="pane tech-pane" id="tech-pane" aria-label="Motor Técnico HPR">
+      <div class="pane-head">
+        <div class="pane-head-row"><div><div class="eyebrow">01 / Engineering control plane</div><div class="pane-title">Motor Técnico <span style="color:#7892aa;font-weight:500">/ Nexus Console</span></div><div class="pane-sub">Orquestación · límites de confianza · observabilidad · auditoría</div></div><div class="head-actions"><span class="pill amber"><i class="dot"></i> Perímetro · sin dato real</span><button class="iconbtn" id="refresh-tech" type="button" title="Actualizar vista"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.5 9a7 7 0 0 1 12-2L20 12M4 12l2.5 5a7 7 0 0 0 12-2"/></svg></button></div></div>
+      </div>
+      <div class="section">
+        <div class="section-head"><div class="section-title">Control de sesión</div><span class="mini-label">Policy layer / A₀</span></div>
+        <div class="controls-grid">
+          <div class="field"><label class="fieldlabel" for="confidence">NIVEL DE CONFIANZA</label><select id="confidence"><option value="1">Nivel 1 — Acceso básico</option><option value="2">Nivel 2 — Confianza reforzada</option><option value="3">Nivel 3 — Acceso restringido</option></select><div class="select-note" id="confidence-note">Consulta y acciones permitidas por la política de Nivel 1.</div></div>
+          <div class="field"><label class="fieldlabel" for="trigger">TRIGGER / CAPACIDAD</label><select id="trigger"><option value="@hpr_confianza">@hpr_confianza</option><option value="@nivel1">@nivel1</option><option value="@web_search">@web_search</option><option value="N1 · Búsqueda Cognitiva">N1 · Búsqueda Cognitiva</option><option value="N2 · Grafo de Consistencia">N2 · Grafo de Consistencia</option><option value="MotorRazonamientoSuperior">MotorRazonamientoSuperior</option><option value="SOVEREIGN-GATE">SOVEREIGN-GATE</option></select><div class="select-note" id="trigger-note">Consulta de estado y reglas del perímetro de confianza.</div></div>
+        </div>
+        <div class="control-footer"><span class="pill cyan" id="mode-pill">Modo técnico · control manual</span><button class="primarybtn" id="execute-trigger" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="m8 5 12 7-12 7z"/></svg> Ejecutar trigger</button></div>
+      </div>
+      <div class="section">
+        <div class="section-head"><div class="section-title">Niveles de confianza</div><span class="mini-label">Autorización / permisos</span></div>
+        <div class="confidence-strip" role="group" aria-label="Elegir nivel de confianza">
+          <button class="level selected" data-level="1" type="button"><strong>NIVEL 01</strong><span>Acceso básico<br>operaciones permitidas</span></button>
+          <button class="level" data-level="2" type="button"><strong>NIVEL 02</strong><span>Validación reforzada<br>según política</span></button>
+          <button class="level" data-level="3" type="button"><strong>NIVEL 03</strong><span>Operaciones restringidas<br>requieren autorización</span></button>
+        </div>
+        <div class="select-note" style="margin-top:9px">Los niveles son controles de UX; los permisos reales los define y valida el backend (NEXUS-ROOT / SOVEREIGN-GATE). Cambiar el nivel aquí no concede privilegios.</div>
+      </div>
+      <div class="section">
+        <div class="section-head"><div class="section-title">Mapa de orquestación</div><span class="pill amber" id="pipeline-status">ESQUEMA CONCEPTUAL</span></div>
+        <div class="pipeline pipeline-wrap" id="pipeline">
+          <div class="node ok" data-node="nexus"><div class="node-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 20 6v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/><path d="m8 12 2.5 2.5L16 9"/></svg></div><div><div class="node-name">NEXUS-ROOT</div><div class="node-meta">Perímetro · estado · validación</div></div><span class="node-status">ACTIVO*</span></div>
+          <div class="node" data-node="router"><div class="node-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M8 6h8M7 8l4 8m6-8-4 8"/></svg></div><div><div class="node-name">Detector · Selector · Router</div><div class="node-meta">Idioma · intención · enrutamiento</div></div><span class="node-status" style="color:#8299af">ESPERA</span></div>
+          <div class="node" data-node="n1"><div class="node-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5M8 10h5M10.5 8v5"/></svg></div><div><div class="node-name">N1 · Búsqueda Cognitiva</div><div class="node-meta">Recuperación semántica · embeddings</div></div><span class="node-status" style="color:#8299af">ESPERA</span></div>
+          <div class="node" data-node="n2"><div class="node-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="m10.7 6.7-4.4 9.1m7-9.1 4.4 9.1M7.2 18h9.6"/></svg></div><div><div class="node-name">N2 · Grafo de Consistencia</div><div class="node-meta">Conflictos · coherencia de afirmaciones</div></div><span class="node-status" style="color:#8299af">ESPERA</span></div>
+          <div class="node" data-node="reasoner"><div class="node-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3H5a2 2 0 0 0-2 2v4m12-6h4a2 2 0 0 1 2 2v4M3 15v4a2 2 0 0 0 2 2h4m6 0h4a2 2 0 0 0 2-2v-4"/><path d="M8 12h8m-4-4v8"/></svg></div><div><div class="node-name">MotorRazonamientoSuperior</div><div class="node-meta">Síntesis y discernimiento de salida</div></div><span class="node-status" style="color:#8299af">ESPERA</span></div>
+          <div class="node warn" data-node="epsilon"><div class="node-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 21 19H3z"/><path d="M12 9v4m0 3h.01"/></svg></div><div><div class="node-name">EPSILON-WALL</div><div class="node-meta">Límite epistémico · control de afirmaciones</div></div><span class="node-status" style="color:#e9b76a">VIGILA*</span></div>
+          <div class="node" data-node="sovereign"><div class="node-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 20 7v5c0 5-4 8-8 9-4-1-8-4-8-9V7z"/><path d="M9 12h6m-3-3v6"/></svg></div><div><div class="node-name">SOVEREIGN-GATE</div><div class="node-meta">Soberanía de ingestión · cambios sensibles</div></div><span class="node-status" style="color:#8299af">SEGÚN ACCIÓN</span></div>
+          <div class="node" data-node="audit"><div class="node-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 4h8l3 3v13H5V4z"/><path d="M8 11h8M8 15h8M8 8h3"/></svg></div><div><div class="node-name">Traza y auditoría</div><div class="node-meta">Eventos · resultados · incidencias</div></div><span class="node-status" style="color:#8299af">REGISTRO DEMO</span></div>
+        </div>
+        <div class="pipeline-caption">Vista de referencia basada en los componentes conocidos del proyecto. Las conexiones, precedencias exactas y estados reales se validan contra el pipeline implementado en la Etapa D.</div>
+      </div>
+      <div class="section">
+        <div class="section-head"><div class="section-title">Telemetría de ejecución</div><span class="mini-label">Valores reales desde la Etapa D</span></div>
+        <div class="telemetry">
+          <div class="metric"><label>LATENCIA</label><strong id="latency">—</strong><small id="latency-sub">sin ejecución real</small></div>
+          <div class="metric"><label>TOKENS</label><strong id="tokens">—</strong><small>presupuesto no conectado</small></div>
+          <div class="metric"><label>SUBTAREAS</label><strong id="subtasks">0</strong><small>sesión de demostración</small></div>
+          <div class="metric"><label>VALIDACIONES</label><strong id="validations">0/3</strong><small>sin validación real</small></div>
+        </div>
+      </div>
+      <div class="section" style="flex:1;min-height:130px">
+        <div class="section-head"><div class="section-title">Traza operativa</div><span class="mini-label" style="margin-right:auto">eventos locales de UI</span><button class="smallbtn" id="clear-events" type="button">Limpiar vista</button></div>
+        <div class="events" id="events" aria-live="polite">
+          <div class="event"><span class="event-time">09:00:01</span><i class="event-mark good"></i><div class="event-text"><b>UI_READY</b> · Interfaz dual inicializada — estructura base (Etapa B).</div></div>
+          <div class="event"><span class="event-time">09:00:02</span><i class="event-mark"></i><div class="event-text"><b>SESSION_POLICY</b> · Nivel 1 seleccionado; la autorización real reside en el backend.</div></div>
+          <div class="event"><span class="event-time">09:00:02</span><i class="event-mark warn"></i><div class="event-text"><b>BACKEND_OFFLINE</b> · Ejecutá <b>run.py</b> para conectar la interfaz con el motor real.</div></div>
+        </div>
+      </div>
+      <div class="footnote">* Los indicadores del perímetro son representaciones visuales de demo; no sustituyen validaciones ejecutadas por el motor.</div>
+    </section>
+
+    <!-- RIGHT: CONVERSATIONAL CHAT -->
+    <section class="pane chat-pane" id="chat-pane" aria-label="Chat Autónomo HPR">
+      <div class="pane-head">
+        <div class="pane-head-row"><div><div class="eyebrow">02 / Autonomous interaction plane</div><div class="pane-title">Chat Autónomo</div><div class="pane-sub">Conversación natural · entrada por voz · respuesta por audio</div></div><div class="chat-head-controls"><button class="smallbtn" id="new-chat" type="button" title="Crear conversación nueva"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg><span>Nuevo chat</span></button><button class="iconbtn" id="clear-chat" type="button" title="Borrar conversación"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3"/></svg></button></div></div>
+        <div class="chat-mode-line"><span class="pill cyan"><i class="dot" style="background:#55c9ef;box-shadow:none"></i> Conversación continua</span><span class="pill">Sesión <span id="session-id">sin conectar</span></span><span class="pill" id="voice-support">Audio: comprobando navegador…</span></div>
+      </div>
+      <div class="chat-messages" id="messages" aria-live="polite" aria-label="Mensajes de conversación">
+        <div class="message assistant" data-role="assistant"><div class="avatar">HPR</div><div class="message-main"><div class="message-meta"><strong>HPR · Asistente</strong><span>Mensaje de bienvenida</span></div><div class="bubble">Bienvenido a <strong>Hybrid Predictive Reasoning</strong> — Interfaz Dual.<br><br>Esta es la estructura visual base (Etapa B): el diseño de dos paneles y sus controles están listos. La conexión real del chat y el audio se activan en la Etapa C, y la ejecución real del motor técnico en la Etapa D.<br><br><span class="inline-tag">Etapa B</span> Estructura visual base · backend no conectado aún.</div><div class="message-actions"><button class="response-audio" id="welcome-listen" type="button">▶ Escuchar</button><button id="welcome-copy" type="button">▢ Copiar</button></div></div></div>
+      </div>
+      <div class="chat-bottom">
+        <div class="composer">
+          <textarea id="prompt" rows="2" placeholder="Escribí un mensaje para HPR… (Enter para enviar · Shift+Enter para salto de línea)" aria-label="Mensaje para HPR"></textarea>
+          <div class="file-chip" id="file-chip"></div>
+          <div class="compose-row"><div class="compose-tools">
+            <button class="toolbtn" id="attach-button" type="button" disabled title="No soportado: el backend no consume archivos" aria-disabled="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21 11.5-8.5 8.5a5 5 0 0 1-7-7L14 4.5a3.5 3.5 0 0 1 5 5L10 18.5a2 2 0 0 1-3-3l8-8"/></svg> Adjuntar</button>
+            <input id="file-input" type="file" class="hidden" multiple />
+            <button class="toolbtn" id="mic-button" type="button" title="Dictar un mensaje"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3m-4 0h8"/></svg> <span id="mic-label">Hablar</span></button>
+            <button class="toolbtn" id="stop-audio-button" type="button" disabled title="Audio de respuesta: Etapa C" aria-disabled="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg> Detener audio</button>
+          </div><button class="sendbtn" id="send-button" type="button" title="Enviar mensaje"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M22 2 15 22l-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></div>
+        </div>
+        <div class="composer-foot"><label class="toggle"><input type="checkbox" id="autoplay" /> Leer respuestas automáticamente</label><span>El audio depende de la compatibilidad y permisos del navegador.</span></div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script src="app.js" defer></script>
+</body>
+</html>
