@@ -134,13 +134,13 @@ document.querySelectorAll('.level').forEach((el) => {
 
 /* ------------------- Triggers (selección; ejecución: Etapa D) ------------------- */
 const triggerDescriptions = {
-  '@hpr_confianza': 'Consulta de estado y reglas del perímetro de confianza.',
-  '@nivel1': 'Solicita el perfil de interacción asociado a Nivel 1.',
-  '@web_search': 'Activa la intención de búsqueda web; requiere backend conectado para ejecutar una búsqueda real.',
-  'N1 · Búsqueda Cognitiva': 'Recuperación semántica y puntuación de relevancia mediante embeddings.',
-  'N2 · Grafo de Consistencia': 'Inspección de relaciones y detección de conflictos entre afirmaciones.',
-  'MotorRazonamientoSuperior': 'Área de síntesis, evaluación y discernimiento de resultados.',
-  'SOVEREIGN-GATE': 'Control de soberanía de ingestión y cambios sensibles; no concede permisos desde la UI.',
+  '@hpr_confianza': 'Consulta de estado y reglas del perímetro de confianza. Ejecución real con el backend.',
+  '@nivel1': 'Solicita el perfil de interacción asociado a Nivel 1. Ejecución real con el backend.',
+  '@web_search': 'Búsqueda web: el backend informa si está configurado (sin simulación).',
+  'N1 · Búsqueda Cognitiva': 'Recuperación semántica sobre la sesión actual. Ejecución real con el backend.',
+  'N2 · Grafo de Consistencia': 'Inspección de relaciones y detección de conflictos. Ejecución real con el backend.',
+  'MotorRazonamientoSuperior': 'Síntesis y discernimiento de la sesión. Ejecución real con el backend.',
+  'SOVEREIGN-GATE': 'Control de soberanía: requiere autorización explícita del backend (rechazado sin nivel 3 + permiso).',
 };
 
 function triggerChanged() {
@@ -150,19 +150,134 @@ function triggerChanged() {
 }
 $('trigger').addEventListener('change', triggerChanged);
 
-function executeTrigger() {
+/* ------------------------- Etapa D · Ejecución real de triggers -------------------------
+ * Conexión real con POST /api/v1/trigger. Flujo:
+ * 1. Validación local de parámetros
+ * 2. Envío al backend con sesión y nivel de confianza
+ * 3. Renderizado de resultado y telemetría en el panel técnico
+ * 4. Manejo de estados: ejecutando → completado/error
+ * 5. Actualización de la traza operativa con eventos reales          */
+let triggerBusy = false;
+
+async function executeTrigger() {
+  if (triggerBusy) return; // protección contra doble ejecución
   const trigger = $('trigger').value;
   const level = +$('confidence').value;
-  addEvent('TRIGGER_REQUEST', 'Solicitud de ejecución: ' + trigger + ' · Nivel ' + level + '.', 'warn');
-  if (trigger === 'SOVEREIGN-GATE' || level === 3) {
-    addEvent('AUTH_REQUIRED', 'Operación sensible: debe validar permisos con el backend real (Etapa D).', 'warn');
-    showToast('Autorización sensible pendiente: se conectará al backend en la Etapa D.');
-    return;
+  const btn = $('execute-trigger');
+  
+  addEvent('TRIGGER_EXEC', 'Ejecutando trigger real: ' + trigger + ' · Nivel ' + level, 'normal');
+  
+  // Estado de ejecución
+  triggerBusy = true;
+  btn.disabled = true;
+  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="m8 5 12 7-12 7z"/></svg> Ejecutando…';
+  
+  try {
+    const resp = await fetch('/api/v1/trigger', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        trigger: trigger,
+        confidence_level: level,
+        session_id: sessionId,
+      }),
+      cache: 'no-store',
+    });
+    
+    const data = await resp.json();
+    
+    if (data.success) {
+      addEvent('TRIGGER_OK', 'Trigger ejecutado: ' + data.trigger + ' en ' + (data.execution_time_ms || 0) + ' ms', 'good');
+      showToast('Trigger ejecutado correctamente.');
+      
+      // Actualizar sesión si el backend asignó una nueva
+      if (data.session_id) {
+        setSessionId(data.session_id);
+      }
+      
+      // Actualizar telemetría en el panel técnico
+      updateTelemetry(data.telemetry, data.result);
+      
+      // Actualizar traza con el resultado
+      if (data.result) {
+        const resultSummary = Object.entries(data.result)
+          .slice(0, 3)
+          .map(([k, v]) => k + ': ' + (typeof v === 'object' ? JSON.stringify(v).slice(0, 50) : v))
+          .join(' · ');
+        addEvent('TRIGGER_RESULT', resultSummary, 'normal');
+      }
+    } else {
+      addEvent('TRIGGER_ERROR', data.error_message || 'Error desconocido', 'warn');
+      showToast(data.error_message || 'Error en la ejecución.');
+      
+      // Limpiar telemetría en caso de error
+      clearTelemetry();
+    }
+  } catch (err) {
+    const msg = err.name === 'AbortError'
+      ? 'Tiempo de espera agotado: el backend no respondió.'
+      : 'No se pudo conectar con el backend local. Verificá que el servidor esté corriendo (run.py).';
+    addEvent('TRIGGER_TRANSPORT', msg, 'warn');
+    showToast(msg);
+    clearTelemetry();
+  } finally {
+    triggerBusy = false;
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="m8 5 12 7-12 7z"/></svg> Ejecutar trigger';
   }
-  addEvent('BACKEND_PENDING', 'Ejecución real de triggers: conexión con el motor en la Etapa D.', 'warn');
-  showToast('Ejecución real pendiente (Etapa D): ' + trigger);
 }
 $('execute-trigger').addEventListener('click', executeTrigger);
+
+/* ------------------------- Etapa D · Telemetría en tiempo real -------------------------
+ * Actualiza el panel técnico con métricas reales del backend.        */
+function updateTelemetry(telemetry, result) {
+  if (!telemetry) return;
+  
+  // Latencia
+  const latencyEl = $('latency');
+  const latencySub = $('latency-sub');
+  if (latencyEl && telemetry.execution_time_ms != null) {
+    latencyEl.textContent = telemetry.execution_time_ms.toFixed(1) + ' ms';
+    latencySub.textContent = 'última ejecución real';
+  }
+  
+  // Tokens (si están disponibles en el resultado)
+  const tokensEl = $('tokens');
+  if (tokensEl && result && result.tokens_used != null) {
+    tokensEl.textContent = String(result.tokens_used);
+  }
+  
+  // Subtareas (si están disponibles)
+  const subtasksEl = $('subtasks');
+  if (subtasksEl && result && result.subtasks_executed != null) {
+    subtasksEl.textContent = String(result.subtasks_executed);
+  }
+  
+  // Validaciones (nivel de confianza + estado)
+  const validationsEl = $('validations');
+  if (validationsEl && telemetry.confidence_level != null) {
+    const level = telemetry.confidence_level;
+    validationsEl.textContent = level + '/3';
+    validationsEl.style.color = level === 3 ? 'var(--amber)' : 'var(--green)';
+  }
+}
+
+function clearTelemetry() {
+  const latencyEl = $('latency');
+  const latencySub = $('latency-sub');
+  const tokensEl = $('tokens');
+  const subtasksEl = $('subtasks');
+  const validationsEl = $('validations');
+  
+  if (latencyEl) latencyEl.textContent = '—';
+  if (latencySub) latencySub.textContent = 'sin ejecución real';
+  if (tokensEl) tokensEl.textContent = '—';
+  if (subtasksEl) subtasksEl.textContent = '0';
+  if (validationsEl) {
+    validationsEl.textContent = '0/3';
+    validationsEl.style.color = '';
+  }
+}
 
 /* ------------------------- Refresco y traza ------------------------- */
 async function refreshTech() {
