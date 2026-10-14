@@ -27,3 +27,6 @@ coverage.xml
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Logs de ejecución (Etapa D4) — datos de runtime, no se versionan
+HPR/boveda y vitacoras/logs/
