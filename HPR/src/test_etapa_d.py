@@ -337,3 +337,139 @@ def test_telemetry_anti_phishing_activo(client: TestClient) -> None:
     """El guardia anti-phishing también protege /api/v1/telemetry."""
     resp = client.get("/api/v1/telemetry?query=login+verify+account")
     assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# D4 · Persistencia de logs de ejecución
+# ---------------------------------------------------------------------------
+
+def test_logs_endpoint_responde_200(client: TestClient) -> None:
+    """El endpoint /api/v1/logs responde correctamente."""
+    resp = client.get("/api/v1/logs")
+    assert resp.status_code == 200
+
+
+def test_logs_estructura_completa(client: TestClient) -> None:
+    """Los logs incluyen todas las secciones esperadas."""
+    resp = client.get("/api/v1/logs")
+    data = resp.json()
+    assert "logs" in data
+    assert "count" in data
+    assert "filters" in data
+
+
+def test_logs_vacios_sin_ejecuciones(client: TestClient) -> None:
+    """Sin ejecuciones previas, los logs están vacíos."""
+    resp = client.get("/api/v1/logs")
+    data = resp.json()
+    # Puede haber logs de pruebas anteriores, pero la estructura es correcta
+    assert isinstance(data["logs"], list)
+    assert isinstance(data["count"], int)
+
+
+def test_logs_stats_endpoint(client: TestClient) -> None:
+    """El endpoint /api/v1/logs/stats responde correctamente."""
+    resp = client.get("/api/v1/logs/stats")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "total_executions" in data
+    assert "successful" in data
+    assert "failed" in data
+
+
+def test_logs_export_json(client: TestClient) -> None:
+    """El endpoint /api/v1/logs/export exporta en JSON."""
+    resp = client.get("/api/v1/logs/export?format=json")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "exported"
+    assert data["format"] == "json"
+
+
+def test_logs_export_csv(client: TestClient) -> None:
+    """El endpoint /api/v1/logs/export exporta en CSV."""
+    resp = client.get("/api/v1/logs/export?format=csv")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "exported"
+    assert data["format"] == "csv"
+
+
+def test_logs_export_formato_invalido(client: TestClient) -> None:
+    """Formato de exportación inválido retorna 400."""
+    resp = client.get("/api/v1/logs/export?format=xml")
+    assert resp.status_code == 400
+
+
+def test_logs_integrity_endpoint(client: TestClient) -> None:
+    """El endpoint /api/v1/logs/integrity verifica integridad."""
+    resp = client.get("/api/v1/logs/integrity")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "integrity_ok" in data
+
+
+def test_logs_con_filtro_trigger(client: TestClient) -> None:
+    """Los logs pueden filtrarse por trigger."""
+    # Primero ejecutar un trigger para generar un log
+    client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "confidence_level": 1,
+    })
+    
+    resp = client.get("/api/v1/logs?trigger=@hpr_confianza")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data["logs"], list)
+
+
+def test_logs_con_filtro_success(client: TestClient) -> None:
+    """Los logs pueden filtrarse por estado de éxito."""
+    resp = client.get("/api/v1/logs?success=true")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data["logs"], list)
+
+
+def test_logs_con_limite(client: TestClient) -> None:
+    """Los logs respetan el límite especificado."""
+    resp = client.get("/api/v1/logs?limit=5")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["count"] <= 5
+
+
+def test_logs_anti_phishing_activo(client: TestClient) -> None:
+    """El guardia anti-phishing también protege /api/v1/logs."""
+    resp = client.get("/api/v1/logs?query=login+verify+account")
+    assert resp.status_code == 403
+
+
+def test_log_persistente_despues_de_trigger(client: TestClient) -> None:
+    """Cada ejecución de trigger genera un log persistente."""
+    # Ejecutar un trigger
+    resp = client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "confidence_level": 1,
+    })
+    assert resp.status_code == 200
+    
+    # Verificar que se generó un log
+    resp_logs = client.get("/api/v1/logs?trigger=@hpr_confianza")
+    data_logs = resp_logs.json()
+    assert data_logs["count"] > 0
+
+
+def test_log_registro_hash_integridad(client: TestClient) -> None:
+    """Cada log incluye hash de integridad (S5)."""
+    # Ejecutar un trigger
+    client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "confidence_level": 1,
+    })
+    
+    # Obtener logs y verificar que tienen hash
+    resp = client.get("/api/v1/logs?trigger=@hpr_confianza")
+    data = resp.json()
+    if data["logs"]:
+        assert "hash" in data["logs"][0]

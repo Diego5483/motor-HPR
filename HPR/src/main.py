@@ -26,6 +26,7 @@ from .models.contracts import (
     ConversationTurn, TurnRole, TurnType, SessionContext,
     StructuredResult, Decision
 )
+from .execution_log import log_execution, get_logs, get_log_stats, export_logs
 
 # Inicialización de la API del motor HPR
 app = FastAPI(title="Motor HPR - Arquitectura Híbrida", version="1.0.0")
@@ -640,7 +641,7 @@ async def execute_trigger_endpoint(
         result = await _execute_trigger_internal(request)
         execution_time = (time.time() - start_time) * 1000
         
-        return TriggerExecutionResponse(
+        response = TriggerExecutionResponse(
             success=True,
             trigger=request.trigger.value,
             session_id=str(request.session_id) if request.session_id else None,
@@ -652,9 +653,23 @@ async def execute_trigger_endpoint(
             },
             execution_time_ms=round(execution_time, 2),
         )
+        
+        # Registrar en log de ejecución (Etapa D4)
+        log_execution(
+            trigger=request.trigger.value,
+            success=True,
+            session_id=str(request.session_id) if request.session_id else None,
+            confidence_level=request.confidence_level,
+            result=result,
+            telemetry=response.telemetry,
+            execution_time_ms=response.execution_time_ms,
+        )
+        
+        return response
     except ValueError as e:
         execution_time = (time.time() - start_time) * 1000
-        return TriggerExecutionResponse(
+        
+        response = TriggerExecutionResponse(
             success=False,
             trigger=request.trigger.value,
             error_message=str(e),
@@ -664,9 +679,23 @@ async def execute_trigger_endpoint(
             },
             execution_time_ms=round(execution_time, 2),
         )
+        
+        # Registrar en log de ejecución (Etapa D4)
+        log_execution(
+            trigger=request.trigger.value,
+            success=False,
+            session_id=str(request.session_id) if request.session_id else None,
+            confidence_level=request.confidence_level,
+            error_message=str(e),
+            telemetry=response.telemetry,
+            execution_time_ms=response.execution_time_ms,
+        )
+        
+        return response
     except Exception as e:
         execution_time = (time.time() - start_time) * 1000
-        return TriggerExecutionResponse(
+        
+        response = TriggerExecutionResponse(
             success=False,
             trigger=request.trigger.value,
             error_message=f"Error interno: {str(e)}",
@@ -676,6 +705,139 @@ async def execute_trigger_endpoint(
             },
             execution_time_ms=round(execution_time, 2),
         )
+        
+        # Registrar en log de ejecución (Etapa D4)
+        log_execution(
+            trigger=request.trigger.value,
+            success=False,
+            session_id=str(request.session_id) if request.session_id else None,
+            confidence_level=request.confidence_level,
+            error_message=f"Error interno: {str(e)}",
+            telemetry=response.telemetry,
+            execution_time_ms=response.execution_time_ms,
+        )
+        
+        return response
+
+
+# ---------------------------------------------------------------------------
+# Etapa D4 · Logs de ejecución (bóveda local)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/v1/logs")
+async def get_execution_logs(
+    limit: int = 100,
+    trigger: Optional[str] = None,
+    success: Optional[bool] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    security_check: bool = Depends(verify_security_guard),
+):
+    """
+    Endpoint de consulta de logs de ejecución (Etapa D4).
+    
+    Devuelve logs persistentes de la bóveda local con filtros opcionales.
+    """
+    logs = get_logs(
+        limit=limit,
+        trigger=trigger,
+        success=success,
+        date_from=date_from,
+        date_to=date_to,
+    )
+    return {
+        "logs": logs,
+        "count": len(logs),
+        "filters": {
+            "limit": limit,
+            "trigger": trigger,
+            "success": success,
+            "date_from": date_from,
+            "date_to": date_to,
+        },
+    }
+
+
+@app.get("/api/v1/logs/stats")
+async def get_logs_stats(
+    security_check: bool = Depends(verify_security_guard),
+):
+    """Estadísticas globales de los logs de ejecución."""
+    stats = get_log_stats()
+    return stats
+
+
+@app.get("/api/v1/logs/export")
+async def export_execution_logs(
+    format: str = "json",
+    trigger: Optional[str] = None,
+    success: Optional[bool] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    security_check: bool = Depends(verify_security_guard),
+):
+    """
+    Endpoint de exportación de logs (Etapa D4).
+    
+    Exporta logs en formato JSON o CSV.
+    """
+    try:
+        export_path = export_logs(
+            format=format,
+            trigger=trigger,
+            success=success,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        return {
+            "status": "exported",
+            "format": format,
+            "file_path": export_path,
+            "message": f"Logs exportados correctamente en {format.upper()}.",
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@app.get("/api/v1/logs/integrity")
+async def verify_logs_integrity(
+    security_check: bool = Depends(verify_security_guard),
+):
+    """
+    Verificación de integridad de los logs (S5).
+    
+    Retorna el resultado de la verificación de hashes SHA-256.
+    """
+    from pathlib import Path
+    
+    logs_dir = Path(__file__).resolve().parent.parent / "boveda y vitacoras" / "logs"
+    
+    if not logs_dir.exists():
+        return {
+            "status": "no_logs",
+            "message": "No hay logs para verificar.",
+        }
+    
+    results = []
+    for log_file in sorted(logs_dir.glob("execution_*.jsonl")):
+        from .execution_log import verify_log_integrity
+        result = verify_log_integrity(log_file)
+        results.append(result)
+    
+    total_valid = sum(r["valid_entries"] for r in results)
+    total_invalid = sum(r["invalid_entries"] for r in results)
+    
+    return {
+        "files_verified": len(results),
+        "total_entries": sum(r["total_entries"] for r in results),
+        "valid_entries": total_valid,
+        "invalid_entries": total_invalid,
+        "integrity_ok": total_invalid == 0,
+        "details": results,
+    }
 
 
 # ---------------------------------------------------------------------------
