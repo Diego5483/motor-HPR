@@ -864,8 +864,80 @@ $('prompt').addEventListener('keydown', (e) => {
 });
 $('prompt').addEventListener('input', autoResize);
 
+/* ------------------------- Etapa D3 · Telemetría en tiempo real -------------------------
+ * Sondeo periódico del endpoint /api/v1/telemetry para mantener
+ * el panel técnico actualizado con métricas reales del backend.  */
+const TELEMETRY_INTERVAL_MS = 5000; // polling cada 5 segundos
+let telemetryTimer = null;
+
+async function pollTelemetry() {
+  try {
+    const url = '/api/v1/telemetry' + (sessionId ? '?session_id=' + encodeURIComponent(sessionId) : '');
+    const resp = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+    });
+    if (!resp.ok) return;
+    
+    const data = await resp.json();
+    renderTelemetry(data);
+  } catch (_) {
+    // Si el backend no está disponible, la telemetría se omite silenciosamente.
+    // El indicador de estado (probeBackend) ya informa esta condición.
+  }
+}
+
+function renderTelemetry(data) {
+  if (!data || !data.telemetria) return;
+  
+  const t = data.telemetria;
+  
+  // Latencia: no hay latencia global en telemetry, usamos la última ejecución
+  // (ya actualizada por updateTelemetry durante executeTrigger)
+  
+  // Tokens
+  const tokensEl = $('tokens');
+  if (tokensEl && t.total_tokens != null) {
+    tokensEl.textContent = String(t.total_tokens);
+  }
+  
+  // Subtasas/turnos
+  const subtasksEl = $('subtasks');
+  if (subtasksEl && t.total_turns != null) {
+    subtasksEl.textContent = String(t.total_turns);
+  }
+  
+  // Validaciones: sesiones activas como indicador de salud
+  const validationsEl = $('validations');
+  if (validationsEl && t.active_sessions != null) {
+    validationsEl.textContent = String(t.active_sessions);
+    validationsEl.style.color = t.active_sessions > 0 ? 'var(--green)' : 'var(--muted)';
+  }
+  
+  // Estado del backend
+  const sysstate = document.querySelector('.sysstate');
+  if (sysstate && data.backend) {
+    sysstate.innerHTML = '<i class="dot"></i> Backend en línea · ' +
+      (data.componentes.nexus_root || 'activo');
+  }
+}
+
+function startTelemetryPolling() {
+  if (telemetryTimer) clearInterval(telemetryTimer);
+  pollTelemetry(); // primera ejecución inmediata
+  telemetryTimer = setInterval(pollTelemetry, TELEMETRY_INTERVAL_MS);
+}
+
+function stopTelemetryPolling() {
+  if (telemetryTimer) {
+    clearInterval(telemetryTimer);
+    telemetryTimer = null;
+  }
+}
+
 /* ------------------------- Inicialización ------------------------- */
 HPRVoice.init();
 refreshVoicePill();
 updateMicUI();
 probeBackend();
+startTelemetryPolling();

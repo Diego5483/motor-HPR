@@ -256,3 +256,84 @@ def test_contrato_sin_cuerpo_retorna_422(client: TestClient) -> None:
     """Cuerpo vacío en /api/v1/trigger se rechaza con 422 (D4)."""
     resp = client.post("/api/v1/trigger", json={})
     assert resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# D3 · Telemetría en tiempo real
+# ---------------------------------------------------------------------------
+
+def test_telemetry_endpoint_responde_200(client: TestClient) -> None:
+    """El endpoint /api/v1/telemetry responde correctamente."""
+    resp = client.get("/api/v1/telemetry")
+    assert resp.status_code == 200
+
+
+def test_telemetry_estructura_completa(client: TestClient) -> None:
+    """La telemetría incluye todas las secciones esperadas."""
+    resp = client.get("/api/v1/telemetry")
+    data = resp.json()
+    assert "backend" in data
+    assert "sesiones" in data
+    assert "session_actual" in data
+    assert "componentes" in data
+    assert "telemetria" in data
+
+
+def test_telemetry_backend_estado_en_linea(client: TestClient) -> None:
+    """El backend reporta su estado como en línea."""
+    resp = client.get("/api/v1/telemetry")
+    data = resp.json()
+    assert data["backend"]["estado"] == "en línea"
+
+
+def test_telemetry_sesiones_globales(client: TestClient) -> None:
+    """Las estadísticas globales de sesiones están presentes."""
+    resp = client.get("/api/v1/telemetry")
+    data = resp.json()
+    sesiones = data["sesiones"]
+    assert "total_sessions" in sesiones
+    assert "active_sessions" in sesiones
+    assert "total_turns" in sesiones
+    assert "total_tokens" in sesiones
+
+
+def test_telemetry_componentes_presentes(client: TestClient) -> None:
+    """Los componentes del motor están reportados."""
+    resp = client.get("/api/v1/telemetry")
+    data = resp.json()
+    componentes = data["componentes"]
+    assert "nexus_root" in componentes
+    assert "sovereign_gate" in componentes
+    assert "epsilon_wall" in componentes
+    assert "session_manager" in componentes
+
+
+def test_telemetry_con_session_id(client: TestClient) -> None:
+    """La telemetría con session_id incluye stats de sesión."""
+    # Primero crear una sesión con un trigger
+    resp_trigger = client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "confidence_level": 1,
+    })
+    data_trigger = resp_trigger.json()
+    session_id = data_trigger.get("session_id")
+    
+    if session_id:
+        resp = client.get(f"/api/v1/telemetry?session_id={session_id}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["session_actual"] is not None
+
+
+def test_telemetry_sesion_inexistente_retorna_null(client: TestClient) -> None:
+    """Sesión inexistente retorna session_actual=null (no error)."""
+    resp = client.get("/api/v1/telemetry?session_id=00000000-0000-0000-0000-000000000000")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["session_actual"] is None
+
+
+def test_telemetry_anti_phishing_activo(client: TestClient) -> None:
+    """El guardia anti-phishing también protege /api/v1/telemetry."""
+    resp = client.get("/api/v1/telemetry?query=login+verify+account")
+    assert resp.status_code == 403

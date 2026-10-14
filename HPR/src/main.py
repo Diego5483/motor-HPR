@@ -539,6 +539,65 @@ async def _execute_trigger_internal(request: TriggerExecutionRequest) -> Dict[st
         raise ValueError(f"Trigger no soportado: {request.trigger}")
 
 
+@app.get("/api/v1/telemetry")
+async def get_telemetry(
+    session_id: Optional[str] = None,
+    security_check: bool = Depends(verify_security_guard),
+):
+    """
+    Endpoint de telemetría en tiempo real (Etapa D3).
+    
+    Devuelve métricas reales del motor HPR:
+    - Estadísticas globales (sesiones, turnos, tokens)
+    - Estadísticas de sesión específica (si se proporciona session_id)
+    - Estado del backend y componentes
+    
+    Seguridad: verify_security_guard inspecciona ?query= para anti-phishing.
+    """
+    session_mgr = get_session_manager()
+    
+    # Estadísticas globales (siempre disponibles)
+    global_stats = session_mgr.get_global_stats()
+    
+    # Estadísticas de sesión específica (si se proporciona)
+    session_stats = None
+    if session_id:
+        try:
+            from uuid import UUID as UUIDType
+            session_uuid = UUIDType(session_id)
+            session_stats = session_mgr.get_session_stats(session_uuid)
+        except (ValueError, TypeError):
+            session_stats = None
+    
+    # Métricas de componentes (soberanía, sin servicios externos)
+    telemetry = {
+        "backend": {
+            "estado": "en línea",
+            "version": "1.0.0",
+            "modulo": "main",
+            "almacenamiento": global_stats.get("storage_path", "memory_only"),
+        },
+        "sesiones": global_stats,
+        "session_actual": session_stats,
+        "componentes": {
+            "nexus_root": "activo",
+            "sovereign_gate": "activo",
+            "epsilon_wall": "vigilante",
+            "session_manager": "activo",
+            "task_orchestrator": "disponible",
+        },
+        "telemetria": {
+            "total_sessions": global_stats.get("total_sessions", 0),
+            "active_sessions": global_stats.get("active_sessions", 0),
+            "total_turns": global_stats.get("total_turns", 0),
+            "total_tokens": global_stats.get("total_tokens", 0),
+            "avg_turns_per_session": global_stats.get("avg_turns_per_session", 0),
+        },
+    }
+    
+    return telemetry
+
+
 @app.post("/api/v1/trigger", response_model=TriggerExecutionResponse)
 async def execute_trigger_endpoint(
     request: TriggerExecutionRequest,
