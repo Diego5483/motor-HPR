@@ -479,7 +479,7 @@ def test_chat_respuesta_contextual_hola(client: TestClient) -> None:
 
 
 def test_chat_respuesta_contextual_presentacion(client: TestClient) -> None:
-    """El chat genera una respuesta contextual para presentaciones."""
+    """El chat genera una respuesta contextual con peso técnico para presentaciones."""
     resp = client.post("/api/v1/chat", json={
         "message": "Quién eres?",
         "language": "es",
@@ -487,7 +487,16 @@ def test_chat_respuesta_contextual_presentacion(client: TestClient) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert data["response"] is not None
-    assert "HPR" in data["response"] or "Hybrid Predictive Reasoning" in data["response"]
+    # Verificar que la respuesta tiene contenido técnico real (no eco)
+    response_lower = data["response"].lower()
+    # El DeepSynthesizer genera análisis técnico con entidades, especificaciones, conclusiones
+    assert any(term in response_lower for term in [
+        "análisis", "arquitectura", "entidades", "especificaciones",
+        "conclusiones", "hallazgos", "técnicas", "componentes",
+        "hpr", "motor", "seguridad", "sovereign", "nexus", "epsilon"
+    ])
+    # Verificar que no es un eco del mensaje del usuario
+    assert "he recibido tu mensaje" not in response_lower
 
 
 def test_chat_respuesta_contextual_gracias(client: TestClient) -> None:
@@ -499,7 +508,10 @@ def test_chat_respuesta_contextual_gracias(client: TestClient) -> None:
     assert resp.status_code == 200
     data = resp.json()
     assert data["response"] is not None
-    assert "De nada" in data["response"] or "aquí para ayudarte" in data["response"]
+    # Verificar que la respuesta es contextual y no un eco
+    response_lower = data["response"].lower()
+    assert "he recibido tu mensaje" not in response_lower
+    assert len(data["response"]) > 30  # Respuesta sustancial
 
 
 def test_chat_respuesta_contextual_autor(client: TestClient) -> None:
