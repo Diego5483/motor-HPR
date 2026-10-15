@@ -1,4 +1,4 @@
-/* ==========================================================================
+﻿/* ==========================================================================
  * Motor HPR — Interfaz Dual · app.js
  * Etapa C: conexión real del chat (POST /api/v1/chat) y gestión de audio.
  * Motor técnico real (triggers, telemetría, traza): Etapa D.
@@ -701,9 +701,6 @@ function refreshVoicePill() {
   const sr = HPRDictation.isAvailable();
   let text;
   let title;
-  if (tts) {
-    text = this SpeakingPlaceholder; // reemplazado abajo
-  }
   if (tts) {
     text = HPRVoice.speaking ? 'Audio: voz local · reproduciendo' : 'Audio: voz local del navegador';
     title = 'La síntesis de voz es 100% local (speechSynthesis): ningún audio sale de tu máquina.';
