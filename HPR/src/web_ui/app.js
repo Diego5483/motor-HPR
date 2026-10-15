@@ -936,8 +936,24 @@ function stopTelemetryPolling() {
 }
 
 /* ------------------------- Inicialización ------------------------- */
-HPRVoice.init();
-refreshVoicePill();
-updateMicUI();
-probeBackend();
-startTelemetryPolling();
+/* D2: Validación explícita de DOM listo (no depende solo de defer).
+ * D3: try-catch robusto con registro claro en consola. */
+function initApp() {
+  try {
+    HPRVoice.init();
+    refreshVoicePill();
+    updateMicUI();
+    probeBackend();
+    startTelemetryPolling();
+    console.log('[HPR] Inicialización completa: UI conectada al backend.');
+  } catch (err) {
+    console.error('[HPR] Error en la inicialización de la UI:', err);
+    addEvent('INIT_ERROR', 'Fallo en la inicialización: ' + err.message, 'warn');
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
