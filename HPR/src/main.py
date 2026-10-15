@@ -27,6 +27,7 @@ from .models.contracts import (
     StructuredResult, Decision
 )
 from .execution_log import log_execution, get_logs, get_log_stats, export_logs
+from .core.engine import sovereign_gate_validation, nexus_root_validation
 
 # Inicialización de la API del motor HPR
 app = FastAPI(title="Motor HPR - Arquitectura Híbrida", version="1.0.0")
@@ -631,6 +632,42 @@ async def execute_trigger_endpoint(
             telemetry={
                 "auth_required": True,
                 "level": request.confidence_level,
+                "execution_time_ms": round(execution_time, 2),
+            },
+            execution_time_ms=round(execution_time, 2),
+        )
+    
+    # Paso 2.1: Pipeline de seguridad completo (SOVEREIGN-GATE + NEXUS-ROOT)
+    # SOVEREIGN-GATE: validación de payload
+    trigger_payload = f"{request.trigger.value} {request.confidence_level}"
+    if request.parameters:
+        trigger_payload += " " + " ".join(str(v) for v in request.parameters.values())
+    
+    if not sovereign_gate_validation(trigger_payload):
+        execution_time = (time.time() - start_time) * 1000
+        # Respuesta sanitizada: no exponer detalles internos de SOVEREIGN-GATE
+        return TriggerExecutionResponse(
+            success=False,
+            trigger=request.trigger.value,
+            error_message="Bloqueo de seguridad: el contenido de la petición fue rechazado por el guardia de seguridad.",
+            telemetry={
+                "security_block": True,
+                "execution_time_ms": round(execution_time, 2),
+            },
+            execution_time_ms=round(execution_time, 2),
+        )
+    
+    # NEXUS-ROOT: validación de identidad determinista
+    system_state = {"identity": "HPR-CORE-DETERMINISTIC"}
+    if not nexus_root_validation(system_state):
+        execution_time = (time.time() - start_time) * 1000
+        # Respuesta sanitizada: no exponer detalles internos de NEXUS-ROOT
+        return TriggerExecutionResponse(
+            success=False,
+            trigger=request.trigger.value,
+            error_message="Acceso denegado: la identidad del sistema no pudo ser verificada.",
+            telemetry={
+                "auth_failed": True,
                 "execution_time_ms": round(execution_time, 2),
             },
             execution_time_ms=round(execution_time, 2),

@@ -340,6 +340,146 @@ def test_telemetry_anti_phishing_activo(client: TestClient) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Fase 2 · Seguridad del pipeline completo (SOVEREIGN-GATE + NEXUS-ROOT)
+# ---------------------------------------------------------------------------
+
+def test_sovereign_gate_bloquea_script_en_trigger(client: TestClient) -> None:
+    """SOVEREIGN-GATE bloquea payloads con <script> en parameters."""
+    resp = client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "confidence_level": 1,
+        "parameters": {"payload": "<script>alert(1)</script>"},
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is False
+    assert "rechazado" in data["error_message"].lower()
+
+
+def test_sovereign_gate_bloquea_drop_table_en_trigger(client: TestClient) -> None:
+    """SOVEREIGN-GATE bloquea payloads con DROP TABLE en parameters."""
+    resp = client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "confidence_level": 1,
+        "parameters": {"query": "DROP TABLE users"},
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is False
+
+
+def test_sovereign_gate_bloquea_override_root_en_trigger(client: TestClient) -> None:
+    """SOVEREIGN-GATE bloquea payloads con OVERRIDE_ROOT en parameters."""
+    resp = client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "confidence_level": 1,
+        "parameters": {"cmd": "OVERRIDE_ROOT"},
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is False
+
+
+def test_sovereign_gate_permite_payloads_legitimos(client: TestClient) -> None:
+    """SOVEREIGN-GATE permite payloads legítimos."""
+    resp = client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "confidence_level": 1,
+        "parameters": {"query": "consulta normal"},
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+
+
+def test_nexus_root_valida_identidad_en_trigger(client: TestClient) -> None:
+    """NEXUS-ROOT valida identidad determinista en el contexto del trigger."""
+    # El endpoint usa identidad HPR-CORE-DETERMINISTA por defecto
+    # Un trigger válido debe pasar la validación
+    resp = client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "confidence_level": 1,
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    # Si NEXUS-ROOT rechazara, success sería False
+    assert data["success"] is True
+
+
+def test_respuesta_bloqueo_sanitizada_s_internos(client: TestClient) -> None:
+    """Respuestas de bloqueo no exponen detalles internos de seguridad."""
+    resp = client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "confidence_level": 1,
+        "parameters": {"payload": "<script>alert(1)</script>"},
+    })
+    data = resp.json()
+    error_msg = data["error_message"].lower()
+    # No debe exponer patrones específicos de SOVEREIGN-GATE
+    assert "script" not in error_msg
+    assert "drop table" not in error_msg
+    assert "override_root" not in error_msg
+    # No debe exponer rutas locales ni stack traces
+    assert "src/" not in error_msg
+    assert "line" not in error_msg
+    assert "traceback" not in error_msg
+
+
+def test_respuesta_error_interno_sanitizada(client: TestClient) -> None:
+    """Respuestas de error interno no exponen stack traces ni rutas."""
+    # Forzar un error interno con un trigger inválido
+    resp = client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "session_id": "invalid-uuid-format",
+        "confidence_level": 1,
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is False
+    error_msg = data["error_message"].lower()
+    # No debe exponer rutas locales ni stack traces
+    assert "src/" not in error_msg
+    assert "traceback" not in error_msg
+    assert "line" not in error_msg
+
+
+def test_codigos_http_correctos_trigger(client: TestClient) -> None:
+    """Verificar códigos HTTP correctos para diferentes escenarios."""
+    # 200: petición válida
+    resp = client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "confidence_level": 1,
+    })
+    assert resp.status_code == 200
+
+    # 422: cuerpo vacío (validación Pydantic)
+    resp_empty = client.post("/api/v1/trigger", json={})
+    assert resp_empty.status_code == 422
+
+    # 200: bloqueo SOVEREIGN-GATE (retorna 200 con success=False)
+    resp_block = client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "confidence_level": 1,
+        "parameters": {"payload": "<script>alert(1)</script>"},
+    })
+    assert resp_block.status_code == 200
+
+
+def test_aislamiento_componentes_sensibles(client: TestClient) -> None:
+    """Verificar que no se exponen componentes sensibles en respuestas."""
+    resp = client.post("/api/v1/trigger", json={
+        "trigger": "@hpr_confianza",
+        "confidence_level": 1,
+    })
+    data = resp.json()
+    result_str = str(data.get("result", {}))
+    # No debe exponer información sensible del sistema
+    assert "IDENTIDAD_DETERMINISTA" not in result_str
+    assert "HPR-CORE" not in result_str
+    assert "nexus_identity" not in result_str.lower()
+
+
+# ---------------------------------------------------------------------------
 # D4 · Persistencia de logs de ejecución
 # ---------------------------------------------------------------------------
 
