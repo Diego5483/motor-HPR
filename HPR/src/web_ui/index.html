@@ -28,16 +28,33 @@
           <div class="field"><label class="fieldlabel" for="confidence">NIVEL DE CONFIANZA</label><select id="confidence"><option value="1">Nivel 1 — Acceso básico</option><option value="2">Nivel 2 — Confianza reforzada</option><option value="3">Nivel 3 — Acceso restringido</option></select><div class="select-note" id="confidence-note">Consulta y acciones permitidas por la política de Nivel 1.</div></div>
           <div class="field"><label class="fieldlabel" for="trigger">TRIGGER / CAPACIDAD</label><select id="trigger"><option value="@hpr_confianza">@hpr_confianza</option><option value="@nivel1">@nivel1</option><option value="@web_search">@web_search</option><option value="N1 · Búsqueda Cognitiva">N1 · Búsqueda Cognitiva</option><option value="N2 · Grafo de Consistencia">N2 · Grafo de Consistencia</option><option value="MotorRazonamientoSuperior">MotorRazonamientoSuperior</option><option value="SOVEREIGN-GATE">SOVEREIGN-GATE</option></select><div class="select-note" id="trigger-note">Consulta de estado y reglas del perímetro de confianza.</div></div>
         </div>
+        <div class="field" style="margin-top:12px">
+          <label class="fieldlabel" for="trigger-payload">PAYLOAD / ORDEN DE EJECUCIÓN</label>
+          <textarea id="trigger-payload" rows="3" placeholder="Parámetros opcionales para el trigger seleccionado (ej. para @web_search: términos de búsqueda; para N1: filtro de búsqueda; para MotorRazonamientoSuperior: foco de síntesis…)"></textarea>
+          <div class="select-note">El contenido se envía como <code>payload</code> al backend. Para @web_search use el campo directamente como query de búsqueda.</div>
+        </div>
         <div class="control-footer"><span class="pill cyan" id="mode-pill">Modo técnico · control manual</span><button class="primarybtn" id="execute-trigger" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="m8 5 12 7-12 7z"/></svg> Ejecutar trigger</button></div>
       </div>
       <div class="section">
-        <div class="section-head"><div class="section-title">Niveles de confianza</div><span class="mini-label">Autorización / permisos</span></div>
-        <div class="confidence-strip" role="group" aria-label="Elegir nivel de confianza">
-          <button class="level selected" data-level="1" type="button"><strong>NIVEL 01</strong><span>Acceso básico<br>operaciones permitidas</span></button>
-          <button class="level" data-level="2" type="button"><strong>NIVEL 02</strong><span>Validación reforzada<br>según política</span></button>
-          <button class="level" data-level="3" type="button"><strong>NIVEL 03</strong><span>Operaciones restringidas<br>requieren autorización</span></button>
+        <div class="section-head"><div class="section-title">Niveles de confianza</div><span class="mini-label">Telemetría pasiva / Backend-driven</span></div>
+        <div class="confidence-indicators" role="status" aria-live="polite" aria-label="Indicadores de nivel de confianza desde backend">
+          <div class="confidence-indicator" data-level="1" id="conf-ind-1">
+            <div class="conf-level-badge">NIVEL 01</div>
+            <div class="conf-desc">Acceso básico — operaciones permitidas</div>
+            <div class="conf-status" id="conf-status-1">INACTIVO</div>
+          </div>
+          <div class="confidence-indicator" data-level="2" id="conf-ind-2">
+            <div class="conf-level-badge">NIVEL 02</div>
+            <div class="conf-desc">Validación reforzada — según política</div>
+            <div class="conf-status" id="conf-status-2">INACTIVO</div>
+          </div>
+          <div class="confidence-indicator" data-level="3" id="conf-ind-3">
+            <div class="conf-level-badge">NIVEL 03</div>
+            <div class="conf-desc">Operaciones restringidas — requieren autorización</div>
+            <div class="conf-status" id="conf-status-3">INACTIVO</div>
+          </div>
         </div>
-        <div class="select-note" style="margin-top:9px">Los niveles son controles de UX; los permisos reales los define y valida el backend (NEXUS-ROOT / SOVEREIGN-GATE). Cambiar el nivel aquí no concede privilegios.</div>
+        <div class="select-note" style="margin-top:9px">Indicadores controlados pasivamente por el backend. El nivel activo se determina por la validación real (NEXUS-ROOT / SOVEREIGN-GATE). No hay controles manuales.</div>
       </div>
       <div class="section">
         <div class="section-head"><div class="section-title">Mapa de orquestación</div><span class="pill amber" id="pipeline-status">ESQUEMA CONCEPTUAL</span></div>
@@ -57,9 +74,9 @@
         <div class="section-head"><div class="section-title">Telemetría de ejecución</div><span class="mini-label">Valores reales desde la Etapa D</span></div>
         <div class="telemetry">
           <div class="metric"><label>LATENCIA</label><strong id="latency">—</strong><small id="latency-sub">esperando ejecución</small></div>
-          <div class="metric"><label>TOKENS</label><strong id="tokens">—</strong><small>sin datos aún</small></div>
-          <div class="metric"><label>SUBTAREAS</label><strong id="subtasks">0</strong><small>sin ejecución</small></div>
-          <div class="metric"><label>VALIDACIONES</label><strong id="validations">—</strong><small>sin ejecución</small></div>
+          <div class="metric"><label>TOKENS</label><strong id="tokens">—</strong><small id="tokens-sub">sin medición</small></div>
+          <div class="metric"><label>TURNOS</label><strong id="turns">—</strong><small id="turns-sub">sin medición</small></div>
+          <div class="metric"><label>SESIONES ACTIVAS</label><strong id="sessions">—</strong><small id="sessions-sub">sin medición</small></div>
         </div>
       </div>
       <div class="section" style="flex:1;min-height:130px">

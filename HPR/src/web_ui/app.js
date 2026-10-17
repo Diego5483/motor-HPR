@@ -101,42 +101,63 @@ function focusPane(which) {
 $('tab-tech').addEventListener('click', () => focusPane('tech'));
 $('tab-chat').addEventListener('click', () => focusPane('chat'));
 
-/* ------------------- Niveles de confianza (solo UI) -------------------
- * La autorización real la define y valida el backend (NEXUS-ROOT /
- * SOVEREIGN-GATE). Este selector no concede privilegios (D4).          */
+/* ------------------- Niveles de confianza (telemetría pasiva desde backend) -------------------
+ * Los indicadores se actualizan automáticamente desde la telemetría del backend.
+ * No hay selección manual — el nivel activo lo determina la validación real (NEXUS-ROOT / SOVEREIGN-GATE).
+ * --------------------------------------------------------------------------- */
 const levelNotes = {
   1: 'Consulta y acciones permitidas por la política de Nivel 1.',
   2: 'Controles reforzados representados en UI; los permisos reales los valida el backend.',
   3: 'Las operaciones restringidas requieren autorización real del backend. Esta interfaz no concede privilegios.',
 };
 
-function confidenceChanged() {
-  const level = +$('confidence').value;
-  $('confidence-note').textContent = levelNotes[level];
-  document.querySelectorAll('.level').forEach((el) => {
-    el.classList.toggle('selected', +el.dataset.level === level);
+function updateConfidenceIndicators(activeLevel) {
+  // activeLevel: 1, 2, 3 o null (sin datos)
+  document.querySelectorAll('.confidence-indicator').forEach((el) => {
+    const level = +el.dataset.level;
+    el.classList.toggle('active', level === activeLevel);
+    el.classList.remove('pending');
+    const statusEl = el.querySelector('.conf-status');
+    if (statusEl) {
+      if (level === activeLevel) {
+        statusEl.textContent = 'ACTIVO';
+        statusEl.className = 'conf-status active';
+      } else {
+        statusEl.textContent = 'INACTIVO';
+        statusEl.className = 'conf-status';
+      }
+    }
   });
-  addEvent(
-    'CONFIDENCE_UI',
-    'Nivel ' + level + ' seleccionado en la interfaz; la autorización real reside en el backend.',
-    level === 3 ? 'warn' : 'normal',
-  );
+  
+  // Actualizar nota del selector (compatibilidad con select existente)
+  const confidenceSelect = $('confidence');
+  const confidenceNote = $('confidence-note');
+  if (confidenceSelect && activeLevel) {
+    confidenceSelect.value = String(activeLevel);
+    if (confidenceNote) confidenceNote.textContent = levelNotes[activeLevel];
+  }
 }
 
-function setLevel(level) {
-  $('confidence').value = String(level);
-  confidenceChanged();
+function setConfidenceIndicatorsPending() {
+  document.querySelectorAll('.confidence-indicator').forEach((el) => {
+    el.classList.remove('active');
+    el.classList.add('pending');
+    const statusEl = el.querySelector('.conf-status');
+    if (statusEl) {
+      statusEl.textContent = 'ESPERANDO…';
+      statusEl.className = 'conf-status pending';
+    }
+  });
 }
-$('confidence').addEventListener('change', confidenceChanged);
-document.querySelectorAll('.level').forEach((el) => {
-  el.addEventListener('click', () => setLevel(+el.dataset.level));
-});
+
+// Inicializar indicadores en estado neutro
+updateConfidenceIndicators(null);
 
 /* ------------------- Triggers (selección; ejecución: Etapa D) ------------------- */
 const triggerDescriptions = {
   '@hpr_confianza': 'Consulta de estado y reglas del perímetro de confianza. Ejecución real con el backend.',
   '@nivel1': 'Solicita el perfil de interacción asociado a Nivel 1. Ejecución real con el backend.',
-  '@web_search': 'Búsqueda web: el backend informa si está configurado (sin simulación).',
+  '@web_search': 'Búsqueda web: requiere un proveedor externo configurado (ej. SerpAPI / Brave). Sin proveedor, el motor informa que la búsqueda no está disponible y no genera resultados. Use el payload con los términos de búsqueda.',
   'N1 · Búsqueda Cognitiva': 'Recuperación semántica sobre la sesión actual. Ejecución real con el backend.',
   'N2 · Grafo de Consistencia': 'Inspección de relaciones y detección de conflictos. Ejecución real con el backend.',
   'MotorRazonamientoSuperior': 'Síntesis y discernimiento de la sesión. Ejecución real con el backend.',
@@ -163,14 +184,18 @@ async function executeTrigger() {
   if (triggerBusy) return; // protección contra doble ejecución
   const trigger = $('trigger').value;
   const level = +$('confidence').value;
+  const payload = $('trigger-payload').value.trim();
   const btn = $('execute-trigger');
   
-  addEvent('TRIGGER_EXEC', 'Ejecutando trigger real: ' + trigger + ' · Nivel ' + level, 'normal');
+  addEvent('TRIGGER_EXEC', 'Ejecutando trigger real: ' + trigger + ' · Nivel ' + level + (payload ? ' · Payload: ' + payload.slice(0, 50) : ''), 'normal');
   
   // Estado de ejecución
   triggerBusy = true;
   btn.disabled = true;
   btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="m8 5 12 7-12 7z"/></svg> Ejecutando…';
+  
+  // Mostrar estado pendiente en indicadores de confianza
+  setConfidenceIndicatorsPending();
   
   try {
     const resp = await fetch('/api/v1/trigger', {
@@ -180,6 +205,7 @@ async function executeTrigger() {
         trigger: trigger,
         confidence_level: level,
         session_id: sessionId,
+        payload: payload || undefined,
       }),
       cache: 'no-store',
     });
@@ -195,16 +221,28 @@ async function executeTrigger() {
         setSessionId(data.session_id);
       }
       
-      // Actualizar telemetría en el panel técnico
-      updateTelemetry(data.telemetry, data.result);
+      // Actualizar telemetría en el panel técnico (G.3: solo métricas medidas)
+      updateTelemetry(data.telemetry);
+      // Refrescar gauges globales reales (tokens/turnos/sesiones) desde el backend
+      pollTelemetry();
       
-      // Actualizar traza con el resultado
+      // Actualizar indicadores de confianza desde telemetría del backend
+      if (data.telemetry && data.telemetry.confidence_level != null) {
+        updateConfidenceIndicators(data.telemetry.confidence_level);
+      }
+      
+      // Traza del resultado: solo campos con valor real. El contrato tipado (G.2)
+      // emite null en los campos no usados; no se muestran valores nulos.
       if (data.result) {
-        const resultSummary = Object.entries(data.result)
-          .slice(0, 3)
-          .map(([k, v]) => k + ': ' + (typeof v === 'object' ? JSON.stringify(v).slice(0, 50) : v))
-          .join(' · ');
-        addEvent('TRIGGER_RESULT', resultSummary, 'normal');
+        const entries = Object.entries(data.result)
+          .filter(([, v]) => v != null && !(Array.isArray(v) && v.length === 0))
+          .slice(0, 4);
+        if (entries.length) {
+          const resultSummary = entries
+            .map(([k, v]) => k + ': ' + (typeof v === 'object' ? JSON.stringify(v).slice(0, 50) : v))
+            .join(' · ');
+          addEvent('TRIGGER_RESULT', resultSummary, 'normal');
+        }
       }
     } else {
       addEvent('TRIGGER_ERROR', data.error_message || 'Error desconocido', 'warn');
@@ -212,6 +250,7 @@ async function executeTrigger() {
       
       // Limpiar telemetría en caso de error
       clearTelemetry();
+      updateConfidenceIndicators(null);
     }
   } catch (err) {
     const msg = err.name === 'AbortError'
@@ -220,6 +259,7 @@ async function executeTrigger() {
     addEvent('TRIGGER_TRANSPORT', msg, 'warn');
     showToast(msg);
     clearTelemetry();
+    updateConfidenceIndicators(null);
   } finally {
     triggerBusy = false;
     btn.disabled = false;
@@ -229,54 +269,31 @@ async function executeTrigger() {
 $('execute-trigger').addEventListener('click', executeTrigger);
 
 /* ------------------------- Etapa D · Telemetría en tiempo real -------------------------
- * Actualiza el panel técnico con métricas reales del backend.        */
-function updateTelemetry(telemetry, result) {
+ * G.3 (Fase F, escenario D/E): cada métrica se escribe SOLO con datos medidos.
+ * La telemetría de la ejecución del trigger aporta la latencia real; los gauges
+ * globales (tokens/turnos/sesiones) los gobierna el sondeo de /api/v1/telemetry.
+ * No se leen campos que el contrato tipado (G.2) no expone (tokens_used/subtasks). */
+function updateTelemetry(telemetry) {
   if (!telemetry) return;
-  
-  // Latencia
+
+  // LATENCIA · única métrica medida por la ejecución del trigger.
   const latencyEl = $('latency');
   const latencySub = $('latency-sub');
   if (latencyEl && telemetry.execution_time_ms != null) {
     latencyEl.textContent = telemetry.execution_time_ms.toFixed(1) + ' ms';
-    latencySub.textContent = 'última ejecución real';
-  }
-  
-  // Tokens (si están disponibles en el resultado)
-  const tokensEl = $('tokens');
-  if (tokensEl && result && result.tokens_used != null) {
-    tokensEl.textContent = String(result.tokens_used);
-  }
-  
-  // Subtareas (si están disponibles)
-  const subtasksEl = $('subtasks');
-  if (subtasksEl && result && result.subtasks_executed != null) {
-    subtasksEl.textContent = String(result.subtasks_executed);
-  }
-  
-  // Validaciones (nivel de confianza + estado)
-  const validationsEl = $('validations');
-  if (validationsEl && telemetry.confidence_level != null) {
-    const level = telemetry.confidence_level;
-    validationsEl.textContent = level + '/3';
-    validationsEl.style.color = level === 3 ? 'var(--amber)' : 'var(--green)';
+    if (latencySub) latencySub.textContent = 'última ejecución medida';
   }
 }
 
+/* G.3: un fallo de trigger solo invalida la ÚLTIMA EJECUCIÓN (latencia).
+ * Los gauges globales (tokens/turnos/sesiones) pertenecen al sondeo de
+ * telemetría y no se borran por un error de trigger (evita el escenario E:
+ * pérdida de estado / datos de otra ejecución). */
 function clearTelemetry() {
   const latencyEl = $('latency');
   const latencySub = $('latency-sub');
-  const tokensEl = $('tokens');
-  const subtasksEl = $('subtasks');
-  const validationsEl = $('validations');
-  
   if (latencyEl) latencyEl.textContent = '—';
-  if (latencySub) latencySub.textContent = 'sin ejecución real';
-  if (tokensEl) tokensEl.textContent = '—';
-  if (subtasksEl) subtasksEl.textContent = '0';
-  if (validationsEl) {
-    validationsEl.textContent = '0/3';
-    validationsEl.style.color = '';
-  }
+  if (latencySub) latencySub.textContent = 'sin ejecución';
 }
 
 /* ------------------------- Refresco y traza ------------------------- */
@@ -528,6 +545,15 @@ async function sendMessage() {
       'Respuesta real recibida en ' + latency + ' ms (' + (turnNo || 'sin n.º de turno') + ').',
       'good',
     );
+    
+    // Actualizar indicadores de confianza desde metadata de la respuesta
+    if (data.metadata && data.metadata.confidence_level != null) {
+      updateConfidenceIndicators(data.metadata.confidence_level);
+      if (data.metadata.fallback) {
+        addEvent('CHAT_FALLBACK', 'Respuesta generada en modo fallback local.', 'warn');
+      }
+    }
+    
     if (data.response && $('autoplay') && $('autoplay').checked) {
       if (HPRVoice.speak(data.response)) {
         addEvent('TTS_PLAY', 'Lectura automática de la respuesta (voz local del navegador).', 'normal');
@@ -889,26 +915,43 @@ function renderTelemetry(data) {
   
   const t = data.telemetria;
   
-  // Latencia: no hay latencia global en telemetry, usamos la última ejecución
-  // (ya actualizada por updateTelemetry durante executeTrigger)
-  
-  // Tokens
+  // Latencia: no hay latencia global en telemetría; la gobierna la última
+  // ejecución de trigger (updateTelemetry). No se escribe aquí (evita escenario E).
+
+  // TOKENS · acumulado medido por el gestor de sesiones.
   const tokensEl = $('tokens');
+  const tokensSub = $('tokens-sub');
   if (tokensEl && t.total_tokens != null) {
     tokensEl.textContent = String(t.total_tokens);
+    if (tokensSub) tokensSub.textContent = 'acumulado de sesiones';
+  }
+
+  // TURNOS · acumulado medido. Antes rotulado "SUBTAREAS" por error (Fase F, D).
+  const turnsEl = $('turns');
+  const turnsSub = $('turns-sub');
+  if (turnsEl && t.total_turns != null) {
+    turnsEl.textContent = String(t.total_turns);
+    if (turnsSub) turnsSub.textContent = 'acumulado de sesiones';
+  }
+
+  // SESIONES ACTIVAS · medido. Antes rotulado "VALIDACIONES" por error (Fase F, D).
+  const sessionsEl = $('sessions');
+  const sessionsSub = $('sessions-sub');
+  if (sessionsEl && t.active_sessions != null) {
+    sessionsEl.textContent = String(t.active_sessions);
+    if (sessionsSub) sessionsSub.textContent = 'activas ahora';
   }
   
-  // Subtasas/turnos
-  const subtasksEl = $('subtasks');
-  if (subtasksEl && t.total_turns != null) {
-    subtasksEl.textContent = String(t.total_turns);
+  // Actualizar indicadores de confianza desde telemetría del backend
+  // El backend puede enviar confidence_level en telemetria o en session_actual
+  let backendConfidenceLevel = null;
+  if (t.confidence_level != null) {
+    backendConfidenceLevel = t.confidence_level;
+  } else if (data.session_actual && data.session_actual.confidence_level != null) {
+    backendConfidenceLevel = data.session_actual.confidence_level;
   }
-  
-  // Validaciones: sesiones activas como indicador de salud
-  const validationsEl = $('validations');
-  if (validationsEl && t.active_sessions != null) {
-    validationsEl.textContent = String(t.active_sessions);
-    validationsEl.style.color = t.active_sessions > 0 ? 'var(--green)' : 'var(--muted)';
+  if (backendConfidenceLevel != null) {
+    updateConfidenceIndicators(backendConfidenceLevel);
   }
   
   // Estado del backend
