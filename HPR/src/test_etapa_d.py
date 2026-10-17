@@ -209,40 +209,45 @@ def test_trigger_web_search_sin_termino_es_error(client: TestClient) -> None:
 
 
 def test_trigger_n1_busqueda_sesion_vacia(client: TestClient) -> None:
-    """N1 sobre sesión sin turnos informa resultado vacío honesto."""
+    """N1 informa honestamente que la búsqueda cognitiva no está conectada (H2)."""
     resp = client.post("/api/v1/trigger", json={
         "trigger": "N1 · Búsqueda Cognitiva",
         "confidence_level": 1,
     })
     assert resp.status_code == 200
     data = resp.json()
-    assert data["success"] is True
-    # Sin turnos previos: resultado vacío
+    # H2: la funcionalidad no está conectada -> estado no_disponible -> NO es un éxito (G.2).
+    assert data["result"]["estado"] == "no_disponible"
+    assert data["success"] is False
     assert data["result"]["resultados"] == []
+    assert "ejecutada" not in data["result"]["mensaje"].lower()
 
 
 def test_trigger_n2_grafo_sesion_vacia(client: TestClient) -> None:
-    """N2 sobre sesión sin turnos informa que se necesitan al menos 2."""
+    """N2 informa honestamente que el grafo de consistencia no está conectado (H2)."""
     resp = client.post("/api/v1/trigger", json={
         "trigger": "N2 · Grafo de Consistencia",
         "confidence_level": 1,
     })
     assert resp.status_code == 200
     data = resp.json()
-    assert data["success"] is True
+    assert data["result"]["estado"] == "no_disponible"
+    assert data["success"] is False
     assert data["result"]["conflictos"] == []
+    assert "verificado" not in data["result"]["mensaje"].lower()
 
 
-def test_trigger_motor_razon_ejecucion_exitosa(client: TestClient) -> None:
-    """MotorRazonamientoSuperior genera síntesis de sesión."""
+def test_trigger_motor_razon_no_fabrica_sintesis(client: TestClient) -> None:
+    """MotorRazonamientoSuperior no fabrica una síntesis inexistente (H2)."""
     resp = client.post("/api/v1/trigger", json={
         "trigger": "MotorRazonamientoSuperior",
         "confidence_level": 1,
     })
     assert resp.status_code == 200
     data = resp.json()
-    assert data["success"] is True
-    assert "sintesis" in data["result"]
+    assert data["result"]["estado"] == "no_disponible"
+    assert data["success"] is False
+    assert data["result"]["sintesis"] is None
 
 
 def test_trigger_respuesta_idempotente_campos_obligatorios(client: TestClient) -> None:

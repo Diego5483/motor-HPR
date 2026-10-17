@@ -412,7 +412,7 @@ def test_trigger_interno_web_search_con_query_no_disponible(manager_falso) -> No
 
 
 def test_trigger_interno_n1_busqueda_sin_turnos(manager_falso) -> None:
-    """N1 · Búsqueda Cognitiva con sesión vacía -> sin resultados."""
+    """N1 · Búsqueda Cognitiva con sesión vacía -> honestamente no disponible (H2)."""
     manager_falso(_SesionFalsa([]))
     resultado = asyncio.run(
         _execute_trigger_internal(
@@ -420,7 +420,8 @@ def test_trigger_interno_n1_busqueda_sin_turnos(manager_falso) -> None:
         )
     )
     assert resultado["resultados"] == []
-    assert resultado["mensaje"] == "La sesión no tiene turnos para buscar."
+    assert resultado["estado"] == "no_disponible"
+    assert "ejecutada" not in resultado["mensaje"].lower()
 
 
 def test_trigger_interno_n1_busqueda_con_turnos(manager_falso) -> None:

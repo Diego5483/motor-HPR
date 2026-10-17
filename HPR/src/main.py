@@ -1105,9 +1105,11 @@ async def list_sessions(
 async def _execute_trigger_internal(request: TriggerExecutionRequest) -> Dict[str, Any]:
     """
     Ejecución interna de un trigger según su tipo.
-    
-    Cada trigger realiza una operación específica del motor HPR.
-    Los resultados son reales, sin datos simulados.
+
+    Cada trigger realiza una operación específica del motor HPR, o declara
+    honestamente su indisponibilidad. Los resultados son reales, sin datos
+    simulados: cuando una operación no está conectada al motor vivo se informa
+    como 'no_disponible' (nunca se simulan resultados).
     """
     session_mgr = get_session_manager()
     
@@ -1166,37 +1168,45 @@ async def _execute_trigger_internal(request: TriggerExecutionRequest) -> Dict[st
         }
     
     elif request.trigger == TriggerType.N1_BUSQUEDA:
-        # Búsqueda cognitiva sobre la sesión - usar payload como filtro si se provee
-        if not session.turns:
-            return {"resultados": [], "mensaje": "La sesión no tiene turnos para buscar."}
-        last_turn = session.turns[-1]
+        # Fase 1 · Compuerta H2 — Honestidad: no hay un motor de búsqueda cognitiva
+        # sobre la sesión conectado al motor vivo. NO se afirma haber buscado ni se
+        # fabrican resultados (prohibido inventar). 'no_disponible' => success=False (G.2).
+        last_turn = session.turns[-1] if session.turns else None
         search_filter = user_payload.strip() or parameters.get("filter", "")
         return {
+            "estado": "no_disponible",
             "query": last_turn.content[:200] if last_turn else None,
             "filtro_usuario": search_filter if search_filter else None,
             "resultados": [],
-            "mensaje": "Búsqueda cognitiva ejecutada sobre el último turno.",
+            "mensaje": "Búsqueda cognitiva no disponible: no hay un motor de búsqueda sobre la sesión conectado al motor vivo. No se realizó ninguna búsqueda ni se generan resultados simulados.",
+            "sugerencia_configuracion": "Conecte un índice de búsqueda cognitiva sobre los turnos de la sesión para habilitar N1 · Búsqueda Cognitiva.",
         }
     
     elif request.trigger == TriggerType.N2_GRAFO:
-        # Grafo de consistencia: verificar coherencia entre turnos
-        if len(session.turns) < 2:
-            return {"conflictos": [], "mensaje": "Se necesitan al menos 2 turnos para detectar conflictos."}
+        # Fase 1 · Compuerta H2 — Honestidad: no hay un motor de grafo de consistencia
+        # conectado. NO se afirma haber verificado nada (prohibido el falso éxito).
         return {
+            "estado": "no_disponible",
             "conflictos": [],
-            "mensaje": "Grafo de consistencia verificado: no se detectaron conflictos.",
-            "turnos_analizados": len(session.turns),
+            "turnos_analizados": len(session.turns) if session.turns else 0,
+            "mensaje": "Grafo de consistencia no disponible: no hay un motor de verificación de coherencia conectado al motor vivo. No se analizaron conflictos ni se generan resultados simulados.",
+            "sugerencia_configuracion": "Conecte el motor de grafo de consistencia para habilitar N2 · Grafo de Consistencia.",
         }
     
     elif request.trigger == TriggerType.MOTOR_RAZON:
-        # Motor de razonamiento superior: síntesis de la sesión
+        # Fase 1 · Compuerta H2 — Honestidad: el motor de razonamiento superior no está
+        # conectado al motor vivo (hallazgo H1). NO se fabrica una síntesis inexistente.
         context = session_mgr.get_session_context(session.id)
         focus = user_payload.strip() or parameters.get("focus", "")
         return {
-            "sintesis": f"Síntesis de sesión {session.id} con {len(session.turns)} turnos.",
+            "estado": "no_disponible",
+            "sintesis": None,
             "foco_usuario": focus if focus else None,
+            "turnos": len(session.turns) if session.turns else 0,
             "temas_activos": context.active_topics if context else [],
             "ambiguedades": context.unresolved_ambiguities if context else [],
+            "mensaje": "Motor de razonamiento superior no disponible: la síntesis de sesión no está conectada al motor vivo. No se genera una síntesis simulada.",
+            "sugerencia_configuracion": "Conecte el motor de razonamiento superior (razonamiento_engine) para habilitar la síntesis de sesión.",
         }
     
     elif request.trigger == TriggerType.SOVEREIGN_GATE:

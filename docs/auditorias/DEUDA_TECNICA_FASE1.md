@@ -2,7 +2,7 @@
 
 **Plan Maestro de Auditoría Arquitectónica — Motor HPR · Cierre de Fase 1**
 **Commit de registro:** `55e225e` · **Acta de cierre P5:** `docs/auditorias/ACTA_CIERRE_P5.md`
-**Naturaleza:** registro formal de los hallazgos detectados durante el bloque R (R1–R5.1) y el cierre de P5. **Ninguno está corregido.** Todos constituyen **deuda declarada** (D6, `docs/constitution.md:48`); su corrección exige compuerta propia con prueba rojo→verde.
+**Naturaleza:** registro formal de los hallazgos detectados durante el bloque R (R1–R5.1) y el cierre de P5. **Salvo H2 —corregido en la compuerta G2 (Commit B)—, ninguno está corregido.** Los restantes constituyen **deuda declarada** (D6, `docs/constitution.md:48`); su corrección exige compuerta propia con prueba rojo→verde.
 
 > Este documento **no** autoriza borrar, reescribir ni reconectar nada. Sólo **declara y clasifica** la deuda, su impacto y la compuerta prevista para resolverla.
 
@@ -10,14 +10,14 @@
 
 ## 1. Resumen y clasificación
 
-| ID | Hallazgo | Criticidad | Impacto principal | Compuerta prevista |
-|---|---|---|---|---|
-| **H1** | «Núcleo de razonamiento» desconectado del motor vivo (1 337 st) | **Media** (estructural) | Arquitectura / expectativa del producto; **raíz de H2** | Estructural (H1/H3/H4) |
-| **H2** | Triggers `N1_BUSQUEDA`/`N2_GRAFO`/`MOTOR_RAZON` afirman trabajo no realizado | **Alta** | Veracidad / confianza del usuario; defecto funcional demostrable | **G2 — corrección (rojo→verde)** |
-| **H3** | `core/triage.py` (canónico de R1) es código muerto; la ruta viva usa el duplicado | **Media** | Seguridad / mantenibilidad (divergencia de triaje) | Estructural (H1/H3/H4) |
-| **H4** | Colisión de nombres `nexus_root` (validación viva vs paquete legacy) | **Media** | Mantenibilidad / auditabilidad | Estructural (H1/H3/H4) |
-| **H5** | Helpers sin invocador en módulo vivo (`deep_synthesizer.py`) | **Baja** | Mantenibilidad (código muerto acotado) | Helpers (H5/H5b) |
-| **H5b** | Corpus perdido por clave inexistente (`"corpus"`) en ruta sin invocador | **Media** (latente) | Correctitud latente (se manifiesta si se reconecta H5) | Helpers (H5/H5b) |
+| ID | Hallazgo | Criticidad | Impacto principal | Compuerta prevista | Estado |
+|---|---|---|---|---|---|
+| **H1** | «Núcleo de razonamiento» desconectado del motor vivo (1 337 st) | **Media** (estructural) | Arquitectura / expectativa del producto; **raíz de H2** | Estructural (H1/H3/H4) | Registrado |
+| **H2** | Triggers `N1_BUSQUEDA`/`N2_GRAFO`/`MOTOR_RAZON` afirman trabajo no realizado | **Alta** | Veracidad / confianza del usuario; defecto funcional demostrable | **G2 — corrección (rojo→verde)** | **Corregido — Commit B (G2)** |
+| **H3** | `core/triage.py` (canónico de R1) es código muerto; la ruta viva usa el duplicado | **Media** | Seguridad / mantenibilidad (divergencia de triaje) | Estructural (H1/H3/H4) | Registrado |
+| **H4** | Colisión de nombres `nexus_root` (validación viva vs paquete legacy) | **Media** | Mantenibilidad / auditabilidad | Estructural (H1/H3/H4) | Registrado |
+| **H5** | Helpers sin invocador en módulo vivo (`deep_synthesizer.py`) | **Baja** | Mantenibilidad (código muerto acotado) | Helpers (H5/H5b) | Registrado |
+| **H5b** | Corpus perdido por clave inexistente (`"corpus"`) en ruta sin invocador | **Media** (latente) | Correctitud latente (se manifiesta si se reconecta H5) | Helpers (H5/H5b) | Registrado |
 
 **Escala de criticidad:** *Alta* = afecta la veracidad o la seguridad del producto; *Media* = deuda estructural/mantenibilidad o defecto latente; *Baja* = código muerto acotado sin efecto observable.
 
@@ -47,8 +47,9 @@
 - **Contraste que fija el estándar:** `WEB_SEARCH` (`src/main.py:1150-1166`) **sí** es honesto desde la Fase 1 — devuelve `estado="no_disponible"` y declara textualmente que el motor no genera resultados simulados. El proyecto ya tiene el criterio; estos tres handlers no lo cumplen.
 - **Criticidad:** **Alta** (veracidad / confianza).
 - **Impacto:** el sistema comunica al usuario éxito de operaciones que no ocurren (viola el principio de veracidad y la prohibición de falso éxito). Es un **defecto funcional demostrable**, no una hipótesis.
-- **Compuerta prevista:** **G2 — corrección funcional**, con **prueba rojo→verde** sobre `src/main.py`. *(Única tarea autorizada tras G1.)*
-- **Criterio de cierre:** los tres handlers devuelven el **estado real** (p. ej. `no_disponible`/`no_implementado`, siguiendo el patrón de `WEB_SEARCH`), sin afirmar trabajo no realizado, con pruebas que fijen el nuevo contrato.
+- **Estado:** **CORREGIDO — Commit B (G2)** (2026-10-17). Los tres handlers declaran ahora `estado="no_disponible"` con mensajes que explicitan que no se realizó trabajo ni se generan resultados simulados, alineados con el estándar de `WEB_SEARCH`. Prueba rojo→verde incorporada (5 fallos sobre el código previo → verde) en `src/test_h2_honestidad_triggers.py` (6 pruebas) y `src/test_etapa_d.py`; suite completa **441 passed / 0 failed**.
+- **Compuerta prevista/resuelta:** **G2 — corrección funcional** (ejecutada), con prueba rojo→verde sobre `src/main.py`.
+- **Criterio de cierre (satisfecho):** los tres handlers devuelven el **estado real** (`no_disponible`, siguiendo el patrón de `WEB_SEARCH`), sin afirmar trabajo no realizado, con pruebas que fijan el nuevo contrato.
 
 ### H3 · Duplicado muerto en el triaje
 
@@ -94,7 +95,7 @@
 
 ## 3. Priorización recomendada
 
-1. **H2 (Alta)** — primero: es un defecto funcional demostrable que afecta la veracidad del producto y tiene corrección acotada (`src/main.py`). **Compuerta G2.**
+1. ~~**H2 (Alta)**~~ — **HECHO.** Corregido en **G2 (Commit B)**: los handlers ya declaran `no_disponible` sin afirmar trabajo no realizado. Ver ficha H2 (§2).
 2. **H1 + H3 + H4 (Media, estructural)** — en segundo lugar: comparten naturaleza (código muerto/duplicado/colisión) y una misma decisión de fondo (retiro/archivo vs reconexión real). Requiere plan propio (D6).
 3. **H5 + H5b (Baja/Media, latente)** — tercero: limpieza acotada de un módulo vivo; **H5b no debe reconectarse sin corregirse**.
 4. **Instrumentación del umbral (Decisión nº 5)** — transversal; ver `ACTA_CIERRE_P5.md` §7 (O5-a/O5-b/O5-c), pendiente de autorización.
@@ -115,5 +116,5 @@
 
 | Rol | Nombre | Estado |
 |---|---|---|
-| Coordinación / responsable del proyecto | Coordinación HPR | **Registrado** — deuda declarada, sin corregir (2026-10-17) |
+| Coordinación / responsable del proyecto | Coordinación HPR | **Registrado** — H2 corregido (G2, Commit B); el resto como deuda declarada (2026-10-17) |
 | Reviewer (auditoría independiente) | Reviewer HPR | H1–H5b verificados con evidencia `archivo:línea` |
