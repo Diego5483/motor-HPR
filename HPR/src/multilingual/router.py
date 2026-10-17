@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional
 
 from src.security_agent import HPRSecurityEngine
 from src.models.contracts import PipelineRequest, PipelineState, NivelRiesgo, CategoriaConsulta
-from src.multilingual.detector import detectar_idioma
+from src.multilingual.detector import JUSTIFICATIONS, detectar_idioma
 
 
 # Instancia global del motor - inyectada desde app.py al inicio
@@ -114,6 +114,6 @@ def procesar_con_idioma(
         "nivel_confianza": response.get("nivel_confianza", "medio"),
         "justificación": response.get(
             "justificación",
-            IDIOMA_JUSTIFICACIONES.get(idioma, "Procesamiento completado"),
+            JUSTIFICATIONS.get(idioma, "Procesamiento completado"),
         ),
     }

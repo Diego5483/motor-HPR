@@ -17,14 +17,15 @@ Reglas aplicadas (Constitución HPR):
   runtime de Streamlit, ``toast`` no disponible, consulta sin señales).
 - P7: no mutan — el estado global ``_engine`` del router se restaura siempre.
 
-DEFECTO DEMOSTRADO (R4) — ``src/multilingual/router.py:117``:
-referencia a ``IDIOMA_JUSTIFICACIONES``, nombre que **no existe en ningún
-módulo** del repositorio. Como el valor por defecto de ``dict.get`` se evalúa
-de forma anticipada, la ruta de ÉXITO de ``procesar_con_idioma`` revienta
-siempre con ``NameError`` (afecta a ``src/app.py:57``). Se documenta aquí con
-un ``xfail(strict=True)`` (contrato correcto) y un caracterizador del fallo
-vigente; ambos fuerzan la limpieza de los marcadores cuando se corrija el
-código de producción (compuerta R4-FIX).
+DEFECTO CORREGIDO (R4-FIX) — ``src/multilingual/router.py:117``:
+la ruta de ÉXITO de ``procesar_con_idioma`` referenciaba
+``IDIOMA_JUSTIFICACIONES``, nombre **inexistente en todo el repositorio**. Como
+el valor por defecto de ``dict.get`` se evalúa de forma anticipada, la función
+reventaba **siempre** con ``NameError`` (afectaba a ``src/app.py:57``). La
+compuerta R4-FIX reutilizó ``detector.JUSTIFICATIONS``, retiró el
+``xfail(strict=True)`` y el caracterizador transitorio, y dejó el contrato de
+éxito y el contrato del valor por defecto de justificación como aserciones
+verdes permanentes.
 """
 
 import sys
@@ -63,6 +64,13 @@ class _MotorQueFalla:
 
     def process_pipeline(self, payload=None, state=None, truth=None):
         raise RuntimeError("motor caido")
+
+
+class _MotorSinJustificacion:
+    """Doble del motor: respuesta válida SIN la clave ``justificación``."""
+
+    def process_pipeline(self, payload=None, state=None, truth=None):
+        return {"estado": "OK", "requiere_externa": False, "nivel_confianza": "alto"}
 
 
 class _EstadoSesionFalso(dict):
@@ -342,16 +350,8 @@ def test_procesar_con_idioma_instancia_motor_si_no_hay_inyectado(monkeypatch):
     assert resultado["estado"].startswith("Error en pipeline:")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "DEFECTO R4: 'IDIOMA_JUSTIFICACIONES' no está definido "
-        "(src/multilingual/router.py:117) -> NameError en la ruta de éxito de "
-        "procesar_con_idioma. Contrato correcto fijado para la compuerta R4-FIX."
-    ),
-)
 def test_procesar_con_idioma_camino_exitoso_devuelve_contrato(inyectar_motor):
-    """Contrato correcto de la ruta de éxito (hoy roto por el NameError)."""
+    """Ruta de éxito: contrato de 5 claves con la justificación del motor."""
     inyectar_motor(_MotorOk())
 
     resultado = router.procesar_con_idioma("hola", {"identity": "HPR"})
@@ -369,13 +369,15 @@ def test_procesar_con_idioma_camino_exitoso_devuelve_contrato(inyectar_motor):
     assert resultado["nivel_confianza"] == "alto"
 
 
-def test_procesar_con_idioma_camino_exitoso_falla_por_nameerror(inyectar_motor):
-    """Caracteriza el fallo VIGENTE: la ruta de éxito revienta con NameError.
+def test_procesar_con_idioma_sin_justificacion_usa_la_del_detector(inyectar_motor):
+    """Si el motor no entrega justificación, el router aporta la del detector.
 
-    DEBE ELIMINARSE esta prueba cuando la compuerta R4-FIX corrija
-    ``src/multilingual/router.py`` (aquí queda como ancla roja→verde).
+    Es la rama exacta que provocaba el ``NameError`` corregido en R4-FIX
+    (``JUSTIFICATIONS.get(idioma, ...)``, router.py:117).
     """
-    inyectar_motor(_MotorOk())
+    inyectar_motor(_MotorSinJustificacion())
 
-    with pytest.raises(NameError, match="IDIOMA_JUSTIFICACIONES"):
-        router.procesar_con_idioma("hola", {"identity": "HPR"})
+    resultado = router.procesar_con_idioma("consulta", {"identity": "HPR"}, idioma="es")
+
+    assert resultado["estado"] == "OK"
+    assert resultado["justificación"] == detector.JUSTIFICATIONS["es"]
