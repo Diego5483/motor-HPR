@@ -1,23 +1,24 @@
-"""Pruebas del motor lógico central (src/core/engine.py).
+"""Pruebas del motor lógico central (src/core/engine.py): contrato a nivel de módulo.
 
 Reglas de la Constitución:
 - P2: aserciones formales; P3: determinismo; P4: casos negativos.
 - D1: misma entrada -> misma salida; D5: identidad inmutable.
+
+Alcance: las funciones puras canónicas (Sovereign Gate, Nexus Root, Epsilon Wall)
+que ``src/core/engine.py`` expone como fuente única de verdad. La antigua clase
+``HPREngine`` fue retirada del motor; su responsabilidad quedó repartida entre
+estas funciones puras (aquí) y el adaptador ``HPRSecurityEngine`` (cubierto por
+``test_engine.py``).
 """
 
 import pytest
 
 from src.core.engine import (
-    HPREngine,
-    MENSAJE_BLOQUEO_SOVEREIGN_GATE,
-    MENSAJE_DENEGACION_NEXUS_ROOT,
-    MENSAJE_PIPELINE_VERIFICADO,
-    PATRONES_SOVEREIGN_GATE,
     epsilon_wall_validation,
     nexus_root_validation,
     sovereign_gate_validation,
 )
-from src.models.contracts import IDENTIDAD_DETERMINISTA, PipelineRequest, EstadoPipeline
+from src.models.contracts import IDENTIDAD_DETERMINISTA
 
 
 # ---------------------------------------------------------------------------
@@ -84,53 +85,3 @@ def test_epsilon_wall_exige_todos_los_terminos():
 def test_epsilon_wall_con_verdad_vacia_no_filtra():
     # Documenta el comportamiento actual: verdad vacía se considera satisfecha.
     assert epsilon_wall_validation("cualquier respuesta", []) is True
-
-
-# ---------------------------------------------------------------------------
-# HPREngine: motor central con contratos (D1, D4)
-# ---------------------------------------------------------------------------
-
-@pytest.mark.parametrize("patron", PATRONES_SOVEREIGN_GATE)
-def test_motor_bloquea_patrones_de_ingesta(patron):
-    motor = HPREngine()
-    resultado = motor.process(payload=patron, state={"identity": IDENTIDAD_DETERMINISTA}, truth=[])
-    assert resultado.estado is EstadoPipeline.BLOQUEADO
-    assert resultado.mensaje == MENSAJE_BLOQUEO_SOVEREIGN_GATE
-
-
-def test_motor_deniega_identidad_no_autorizada():
-    motor = HPREngine()
-    resultado = motor.process(payload="Consulta", state={"identity": "ATACANTE"}, truth=[])
-    assert resultado.estado is EstadoPipeline.DENEGADO
-    assert resultado.mensaje == MENSAJE_DENEGACION_NEXUS_ROOT
-
-
-def test_motor_verifica_consulta_limpia():
-    motor = HPREngine()
-    resultado = motor.process(payload="Consulta normal", state={"identity": IDENTIDAD_DETERMINISTA}, truth=[])
-    assert resultado.estado is EstadoPipeline.VERIFICADO
-    assert resultado.mensaje == MENSAJE_PIPELINE_VERIFICADO
-
-
-def test_motor_acepta_identidad_personalizada():
-    motor = HPREngine(nexus_identity="HPR-PERSONALIZADO")
-    resultado = motor.process(payload="Consulta", state={"identity": "HPR-PERSONALIZADO"}, truth=[])
-    assert resultado.estado is EstadoPipeline.VERIFICADO
-
-
-def test_motor_es_determinista():
-    motor = HPREngine()
-    entrada = {
-        "payload": "Consulta repetida",
-        "state": {"identity": IDENTIDAD_DETERMINISTA},
-        "truth": [],
-    }
-    primera = motor.process(**entrada)
-    segunda = motor.process(**entrada)
-    assert primera == segunda
-
-
-def test_motor_procesa_peticion_por_contrato():
-    peticion = PipelineRequest(payload="Consulta normal", truth=["término"])
-    resultado = HPREngine().process_request(peticion)
-    assert resultado.estado is EstadoPipeline.VERIFICADO
