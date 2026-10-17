@@ -16,6 +16,7 @@ from .schemas import (
     CommunicationQuerySchema,
     TriggerExecutionRequest,
     TriggerExecutionResponse,
+    TriggerResult,
     TriggerType,
 )
 from .core.security_agent import verify_security_guard
@@ -1443,11 +1444,20 @@ async def execute_trigger_endpoint(
             execution_time_ms=round(execution_time, 2),
         )
     else:
+        # G.2 · El éxito se DERIVA del estado real del resultado, no se asume.
+        # Un resultado con estado "error" o "no_disponible" NO es un éxito.
+        estado = result.get("estado") if isinstance(result, dict) else None
+        derived_success = estado not in ("error", "no_disponible")
         response = TriggerExecutionResponse(
-            success=True,
+            success=derived_success,
             trigger=request.trigger.value,
             session_id=str(request.session_id) if request.session_id else None,
-            result=result,
+            result=TriggerResult(**result) if isinstance(result, dict) else result,
+            error_message=(
+                result.get("mensaje")
+                if not derived_success and isinstance(result, dict)
+                else None
+            ),
             telemetry={
                 "execution_time_ms": round(execution_time, 2),
                 "confidence_level": request.confidence_level,

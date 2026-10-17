@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CommunicationQuerySchema(BaseModel):
@@ -53,8 +53,74 @@ class TriggerExecutionRequest(BaseModel):
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Parámetros adicionales para el trigger.",
+        description="Parámetros adicionales para el trigger (ej. query para @web_search).",
     )
+    payload: Optional[str] = Field(
+        default=None,
+        description="Payload/orden libre del usuario para el trigger (ej. términos de búsqueda web).",
+    )
+
+
+class WebSearchResultItem(BaseModel):
+    """Resultado individual de búsqueda web (fuente + fragmento)."""
+
+    titulo: str = Field(..., description="Título del resultado.")
+    snippet: str = Field(..., description="Fragmento de texto del resultado.")
+    fuente: str = Field(..., description="Fuente del resultado.")
+    relevancia: float = Field(..., ge=0.0, le=1.0, description="Relevancia (0.0–1.0).")
+
+
+class TriggerResult(BaseModel):
+    """Resultado tipado de la ejecución de un trigger (G.2).
+
+    Sustituye al dict libre ciego: cada clave conocida es un campo explícito.
+    `estado` es la señal consumida por el contrato para derivar el éxito:
+    un estado "error" o "no_disponible" NO es un éxito.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Señal de estado (activo | verificado | error | no_disponible | fallback_local)
+    estado: Optional[str] = None
+    mensaje: Optional[str] = None
+
+    # @hpr_confianza
+    nivel_confianza: Optional[int] = None
+    turnos: Optional[int] = None
+    contexto: Optional[Dict[str, Any]] = None
+
+    # @nivel1
+    perfil: Optional[str] = None
+    operaciones_permitidas: Optional[List[str]] = None
+    restricciones: Optional[List[str]] = None
+
+    # @web_search
+    query: Optional[str] = None
+    resultados_simulados: Optional[List[WebSearchResultItem]] = None
+    sugerencia_configuracion: Optional[str] = None
+
+    # N1 · Búsqueda Cognitiva
+    resultados: Optional[List[Any]] = None
+    filtro_usuario: Optional[str] = None
+
+    # N2 · Grafo de Consistencia
+    conflictos: Optional[List[Any]] = None
+    turnos_analizados: Optional[int] = None
+
+    # MotorRazonamientoSuperior
+    sintesis: Optional[str] = None
+    foco_usuario: Optional[str] = None
+    temas_activos: Optional[List[str]] = None
+    ambiguedades: Optional[List[str]] = None
+
+    # SOVEREIGN-GATE
+    soberania: Optional[str] = None
+    ingestión_permitida: Optional[bool] = None
+    cambios_sensibles: Optional[str] = None
+
+    # Fallback local
+    trigger: Optional[str] = None
+    fallback: Optional[bool] = None
 
 
 class TriggerExecutionResponse(BaseModel):
@@ -66,9 +132,9 @@ class TriggerExecutionResponse(BaseModel):
         default=None,
         description="ID de sesión asociada a la ejecución.",
     )
-    result: Optional[Dict[str, Any]] = Field(
+    result: Optional[TriggerResult] = Field(
         default=None,
-        description="Resultado de la ejecución del trigger.",
+        description="Resultado tipado de la ejecución del trigger (G.2).",
     )
     error_message: Optional[str] = Field(
         default=None,
