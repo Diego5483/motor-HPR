@@ -332,8 +332,11 @@ class DeepSynthesizer:
         return unicos
 
     def _generar_introduccion(self, query: str, hallazgos: List[HallazgoTecnico], n_resultados: int) -> str:
+        # G.1 · Sin hallazgos no se emite encabezado forense ("Análisis de:" /
+        # "Análisis técnico profundo de:"): el sintetizador no debe fabricar un
+        # informe cuando no hay evidencia real que sintetizar.
         if not hallazgos:
-            return f"Análisis de: \"{query}\". Se procesaron {n_resultados} fuentes pero no se extrajeron hallazgos técnicos con confianza suficiente."
+            return ""
         
         tipos = set(h.tipo for h in hallazgos)
         fuentes = set(h.fuente for h in hallazgos)
