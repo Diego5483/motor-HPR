@@ -1147,21 +1147,14 @@ async def _execute_trigger_internal(request: TriggerExecutionRequest) -> Dict[st
                 "estado": "error",
                 "mensaje": "Se requiere un término de búsqueda. Proporcione un payload o parámetro 'query'.",
             }
-        # Fallback local: respuesta estructurada simulando búsqueda web
-        # En producción, aquí se conectaría un motor de búsqueda real (SerpAPI, Brave, etc.)
+        # Fase 1 · Compuerta #3/#5 — Honestidad: sin proveedor externo configurado
+        # NO se simulan fuentes ni se fabrican resultados (prohibido inventar).
+        # Se informa el estado real; 'no_disponible' deriva en success=False (G.2).
         return {
-            "estado": "fallback_local",
+            "estado": "no_disponible",
             "query": search_query,
-            "resultados_simulados": [
-                {
-                    "titulo": f"Resultado local para: {search_query}",
-                    "snippet": f"El motor HPR opera 100% local (S1/S2). No hay motor de búsqueda web configurado en esta instalación. Para consultas de tiempo real, configurar proveedor externo (ej. SerpAPI, Brave Search API).",
-                    "fuente": "hpr_local_fallback",
-                    "relevancia": 0.7
-                }
-            ],
-            "mensaje": "Búsqueda web ejecutada en modo fallback local. Configure un proveedor de búsqueda externo para resultados en tiempo real.",
-            "sugerencia_configuracion": "Agregue SERPAPI_KEY o BRAVE_API_KEY en variables de entorno para habilitar búsqueda web real."
+            "mensaje": "Búsqueda web no disponible: no hay un motor de búsqueda externo configurado. El motor HPR no genera resultados simulados.",
+            "sugerencia_configuracion": "Configure un proveedor de búsqueda externo (ej. SERPAPI_KEY o BRAVE_API_KEY) para habilitar búsqueda web real.",
         }
     
     elif request.trigger == TriggerType.N1_BUSQUEDA:

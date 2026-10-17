@@ -174,16 +174,38 @@ def test_trigger_sesion_inexistente_auto_reparada(client: TestClient) -> None:
 
 
 def test_trigger_web_search_estado_no_disponible(client: TestClient) -> None:
-    """Web search informa honestamente que no está configurado (sin simulación)."""
+    """Web search con término válido informa honestamente que no está configurado.
+
+    Fase 1 · Compuerta #3/#5: sin proveedor externo configurado el motor NO
+    inventa fuentes. El estado "no_disponible" deriva en success=False según el
+    contrato tipado (G.2); no se declara un éxito engañoso.
+    """
+    resp = client.post("/api/v1/trigger", json={
+        "trigger": "@web_search",
+        "confidence_level": 1,
+        "payload": "arquitectura de software",
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is False
+    assert data["result"]["estado"] == "no_disponible"
+    assert data["result"]["query"] == "arquitectura de software"
+    assert "motor de búsqueda" in data["result"]["mensaje"].lower()
+    # No se inventan fuentes ni resultados simulados.
+    assert not data["result"].get("resultados_simulados")
+    assert data["error_message"] == data["result"]["mensaje"]
+
+
+def test_trigger_web_search_sin_termino_es_error(client: TestClient) -> None:
+    """Web search sin término es un error de entrada honesto (no 'no_disponible')."""
     resp = client.post("/api/v1/trigger", json={
         "trigger": "@web_search",
         "confidence_level": 1,
     })
     assert resp.status_code == 200
     data = resp.json()
-    assert data["success"] is True
-    assert data["result"]["estado"] == "no_disponible"
-    assert "motor de búsqueda" in data["result"]["mensaje"].lower()
+    assert data["success"] is False
+    assert data["result"]["estado"] == "error"
 
 
 def test_trigger_n1_busqueda_sesion_vacia(client: TestClient) -> None:
