@@ -40,8 +40,8 @@ def test_logo_principal_es_png_valido():
 
 
 def test_logo_conserva_proporcion_oficial():
-    # El escudo oficial es 1536x1024 (ratio 1.5); la derivada
-    # para cabecera debe conservar la misma proporción.
+    # El logotipo de cabecera es el escudo HPR oficial, de lienzo cuadrado
+    # (1254x1254): se valida la proporción 1:1 sin deformación.
     with Image.open(RUTA_LOGO) as imagen:
         ancho, alto = imagen.size
-        assert abs(ancho / alto - 1.5) < 0.01
+        assert ancho == alto
