@@ -108,3 +108,18 @@ def test_traza_filtra_campos_nulos(appjs: str) -> None:
 def test_web_search_sin_promesa_simulada(appjs: str) -> None:
     """La descripción no debe prometer resultados simulados (Constitución: no inventar)."""
     assert "resultados simulados" not in appjs
+
+
+# ---------------------------------------------------------------------------
+# Compuerta 2 · Render honesto del estado no_disponible (@web_search)
+# ---------------------------------------------------------------------------
+
+def test_consola_registra_estado_no_disponible(appjs: str) -> None:
+    """La consola distingue 'no_disponible' de un error real (Fase 1 · #3/#5).
+
+    Regresión: antes, un @web_search sin proveedor caía en el genérico
+    'TRIGGER_ERROR' sin surfacear el estado explícito ni los campos del resultado.
+    """
+    assert "estado === 'no_disponible'" in appjs
+    assert "TRIGGER_NO_DISPONIBLE" in appjs
+    assert "sugerencia_configuracion" in appjs

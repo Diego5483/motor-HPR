@@ -245,9 +245,22 @@ async function executeTrigger() {
         }
       }
     } else {
-      addEvent('TRIGGER_ERROR', data.error_message || 'Error desconocido', 'warn');
-      showToast(data.error_message || 'Error en la ejecución.');
-      
+      // G.2: success=false para estados no operativos. Se distingue
+      // "no_disponible" (capacidad ausente, no un fallo) de un error real,
+      // registrando el estado explícito y los campos reales del resultado.
+      const estado = data.result && data.result.estado;
+      const mensaje = data.error_message || 'Error en la ejecución.';
+      if (estado === 'no_disponible') {
+        addEvent('TRIGGER_NO_DISPONIBLE', 'Estado: no_disponible · ' + mensaje, 'warn');
+        const detalle = [];
+        if (data.result.query) detalle.push('query: ' + data.result.query);
+        if (data.result.sugerencia_configuracion) detalle.push(data.result.sugerencia_configuracion);
+        if (detalle.length) addEvent('TRIGGER_RESULT', detalle.join(' · '), 'normal');
+      } else {
+        addEvent('TRIGGER_ERROR', mensaje, 'warn');
+      }
+      showToast(mensaje);
+
       // Limpiar telemetría en caso de error
       clearTelemetry();
       updateConfidenceIndicators(null);
