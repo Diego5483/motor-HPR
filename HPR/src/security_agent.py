@@ -21,8 +21,11 @@ from docx import Document
 from src.core.engine import (
     nexus_root_validation,
     sovereign_gate_validation,
+    epsilon_wall_validation,
     evaluar_intencion_externa,
-    triage_query,
+    MENSAJE_BLOQUEO_SOVEREIGN_GATE,
+    MENSAJE_DENEGACION_NEXUS_ROOT,
+    MENSAJE_PIPELINE_VERIFICADO,
 )
 
 # NUEVO: Patrones de trigger sintáctico con prefijoarroba (@)
@@ -32,15 +35,6 @@ TRIGGER_ARROBA_PATTERN = re.compile(r"^@\w+|\s@\w+")
 
 from src.models.contracts import IDENTIDAD_DETERMINISTA
 from src.validador_niveles_confianza import ValidadorNivelesConfianza
-
-# Definición local de epsilon_wall_validation para evitar importaciones problemáticas
-def epsilon_wall_validation(response_content: str, ground_truth: list) -> bool:
-    """Regla 2 (Epsilon Wall): filtro anti-alucinación basado en verificaci��n estricta."""
-    return all(term in response_content for term in ground_truth)
-
-# Definición local de constantes de seguridad
-MENSAJE_BLOQUEO_SOVEREIGN_GATE = "Acceso bloqueado por la pasarela soberana de seguridad."
-MENSAJE_DENEGACION_NEXUS_ROOT = "Acceso denegado por el núcleo raíz determinista."
 
 
 class HPRSecurityEngine:
@@ -83,7 +77,7 @@ class HPRSecurityEngine:
         Capa 0 - Precedencia Soberana: Si el mensaje comienza con un trigger sintáctico
         con prefijo arroba (@), se otorga control soberano automático y se omiten las
         restricciones restrictivas estándar, permitiendo un pase libre y directo hacia
-        el pipeline principal (proceso_pipeline) para ejecutar búsquedas externas
+        el pipeline principal (process_pipeline) para ejecutar búsquedas externas
         bajo los 3 niveles de confianza del motor HPR.
         
         Además de la Capa 0, se aplican las restricciones tradicionales:
@@ -115,119 +109,6 @@ class HPRSecurityEngine:
         retorna True para activar búsqueda web.
         """
         return evaluar_intencion_externa(consulta, self.knowledge_base)
-
-    def proceso_pipeline(self, payload: str, state: dict, truth: list) -> dict:
-        """Ejecuta el pipeline de seguridad HPR con evaluación de intención y búsqueda web opcional.
-
-        Flujo completo (Reglas D1/D2/E5/S2/P4):
-        1. Evaluación de intención: determina si la consulta requiere información externa
-           (actualidad, tecnología reciente, eventos no en bóveda).
-        2. Validaciones deterministas:
-           - Sovereign Gate: bloquea entradas maliciosas (P4).
-           - Nexus Root: valida identidad inmutable del sistema (D5).
-        3. Según el resultado del triaje y la evaluación de intención:
-           - Si requiere externa: ejecutar _ejecutar_busqueda_web con validación
-             de tres niveles de confianza.
-           - Si interna suficiente: extraer pasaje de la bóveda (D1).
-           - Si mezclada: preferir interna, complementar con web validada.
-        4. Retornar diccionario con estado, resultado web y nivel de confianza
-           para la interfaz Streamlit.
-
-        Retorna dict con:
-        - estado: str (resultado procesado)
-        - requiere_web: bool
-        - resultado_web: str | None (contenido validado o None)
-        - nivel_confianza: int | None (1=alta, 2=media, 3=baja)
-        - fuente: str (origen: "boveda", "web_nivel1", "web_nivel2", "web_nivel3")
-        """
-        # --- Paso 1: Evaluación de intención ---
-        eval_externa = self.evaluar_intencion_consulta(payload)
-
-        # --- Paso 2: Validaciones deterministas ---
-        # Sovereign Gate: control de ingesta y mitigación de entradas maliciosas (Regla P4)
-        if not sovereign_gate_validation(payload):
-            return {
-                "estado": "BLOQUEO DE SEGURIDAD: SOVEREIGN-GATE: Entrada bloqueada por seguridad.",
-                "requiere_web": False,
-                "resultado_web": None,
-                "nivel_confianza": None,
-                "fuente": "soveraign_gate",
-            }
-
-        # Nexus Root: valida la identidad inmutable y el propósito del sistema (Regla D1).
-        # Ya no bloquea consultas que requieren investigación externa; solo registra el estado
-        # para efectos de rastreo, pero el acceso a internet y la veracidad de la información
-        # quedan completamente gobernados por el sistema de tres niveles de confianza.
-        nexus_root_result = nexus_root_validation(state)
-        if not nexus_root_result:
-            # No bloquear Consultas} externa; solo informar y continuar
-            # permitiendo que el sistema de tres niveles de confianza gouverne el acceso web.
-            pass  # Continúa el pipeline para búsquedas web gobernadas por confianza
-
-        # --- Paso 3: Triaje determinista ---
-        triaje = triage_query(payload, self.knowledge_base)
-
-        # Manejo por categoría de triaje
-        # Si es seguridad, bloquear
-        if triaje.categoria.name == "SEGURIDAD":
-            return {
-                "estado": f"Consulta clasificada como SEGURIDAD (riesgo {triaje.nivel_riesgo.value}). Motivo: {triaje.razones[0]}. Por política del motor HPR, esta entrada no se procesa.",
-                "requiere_web": False,
-                "resultado_web": None,
-                "nivel_confianza": None,
-                "fuente": "triage_seguridad",
-            }
-
-        # Si es operativa, retornar estado
-        if triaje.categoria.name == "OPERATIVA":
-            return {
-                "estado": f"Motor HPR en línea. Identidad: {self.nexus_identity}. Bóveda local: {len(self.knowledge_base)} caracteres.",
-                "requiere_web": False,
-                "resultado_web": None,
-                "nivel_confianza": None,
-                "fuente": "triage_operativa",
-            }
-
-        # --- Paso 4: Manejo de conocimiento ---
-        # Si es conocimiento, verificar si la bóveda tiene pasaje relevante
-        if triaje.categoria.name == "CONOCIMIENTO":
-            # Intentar obtener pasaje de la bóveda primero
-            pasaje = self._pasaje_mas_relevante(payload)
-            if pasaje is not None:
-                # Contexto interno encontrado → Nivel 1 directo (verificado por construcción)
-                return {
-                    "estado": f"Respuesta extraída de la Bóveda HPR (Nivel 1 - Alta Confianza):\n\n{pasaje}",
-                    "requiere_web": False,
-                    "resultado_web": None,
-                    "nivel_confianza": 1,
-                    "fuente": "boveda_nivel1",
-                }
-
-            # Bóveda no tiene respuesta → activar búsqueda web si la evaluación lo requiere
-            if eval_externa["requiere_externa"]:
-                return self._ejecutar_busqueda_web(payload)
-            else:
-                # Sin pasaje interno y sin necesidad externa → información insuficiente
-                return {
-                    "estado": "No he encontrado información suficiente en la bóveda interna del "
-                              "motor HPR, ni puedo recuperar un resultado web validado para tu "
-                              "consulta. Por favor, reformula la pregunta o proporciona más "
-                              "contexto para que pueda buscar con mayor precisión.",
-                    "requiere_web": False,
-                    "resultado_web": None,
-                    "nivel_confianza": None,
-                    "fuente": "insuficiente_datos",
-                }
-
-        # Consulta no clasificada
-        return {
-            "estado": "No reconozco el tipo de consulta. Puedes preguntar por la bóveda HPR, "
-                      "el estado del motor o temas de seguridad.",
-            "requiere_web": False,
-            "resultado_web": None,
-            "nivel_confianza": None,
-            "fuente": "no_clasificada",
-        }
 
     def _pasaje_mas_relevante(self, consulta: str) -> str | None:
         """Selecciona el pasaje de la bóveda con más coincidencias (D1)."""
@@ -352,23 +233,59 @@ class HPRSecurityEngine:
                 "nivel_confianza": 3,
             }
 
-    def process_pipeline(self, *args, **kwargs):
-        query = args[0] if args else kwargs.get("query", kwargs.get("payload", ""))
-        if isinstance(query, dict):
-            query = query.get("query", query.get("text", str(query)))
+    def process_pipeline(self, payload: str, state: dict, truth: list) -> dict:
+        """Ejecuta el pipeline de seguridad HPR y extrae conocimiento de la bóveda local.
 
-        intencion = self.evaluar_intencion_consulta(str(query))
-        # Nexus Root: validación de identidad (sin bloqueo para consultas web/externas)
-        # El acceso a internet y la veracidad quedan gobernados por el sistema de tres niveles de confianza
+        Contrato unificado (Compuerta 8 / B3): retorna SIEMPRE un ``dict`` con las
+        claves ``estado``, ``requiere_externa``, ``nivel_confianza``, ``justificación``
+        y ``fuente``. Los consumidores (``main.py``, ``web_interface.py``,
+        ``multilingual/router.py``) dependen de este contrato; una ruta que devolviera
+        ``str`` rompía el chat y disparaba un fallback espurio.
 
-        if not sovereign_gate_validation(str(query)):
-            return MENSAJE_BLOQUEO_SOVEREIGN_GATE
+        Orden determinista (Reglas P4, D5, E6):
+        1. Sovereign Gate: bloqueo de ingesta maliciosa (fuente única: core.engine).
+        2. Nexus Root: identidad inmutable del sistema (D5).
+        3. Bóveda: extracción de conocimiento local o reporte de bóveda vacía.
+        """
+        # 1. Sovereign Gate: control de ingesta (Regla P4).
+        if not sovereign_gate_validation(payload):
+            return {
+                "estado": MENSAJE_BLOQUEO_SOVEREIGN_GATE,
+                "requiere_externa": False,
+                "nivel_confianza": None,
+                "justificación": "Entrada bloqueada por Sovereign Gate.",
+                "fuente": "sovereign_gate",
+            }
 
-        # Pipeline completado exitosamente: retorno de estado determinista
+        # 2. Nexus Root: valida la identidad inmutable del sistema (Regla D5).
+        if not self.nexus_root_validation(state):
+            return {
+                "estado": MENSAJE_DENEGACION_NEXUS_ROOT,
+                "requiere_externa": False,
+                "nivel_confianza": None,
+                "justificación": "Identidad no autorizada por Nexus Root.",
+                "fuente": "nexus_root",
+            }
+
+        # 3. Bóveda: extracción de conocimiento local (Regla E6).
+        if self.knowledge_base:
+            return {
+                "estado": (
+                    f"{MENSAJE_PIPELINE_VERIFICADO}\n\n"
+                    f"Información extraída de la Bóveda HPR ({len(self.knowledge_base)} caracteres totales):\n\n"
+                    f"{self.knowledge_base[:1500]}..."
+                ),
+                "requiere_externa": False,
+                "nivel_confianza": "alto",
+                "justificación": "Conocimiento local disponible en la bóveda.",
+                "fuente": "boveda",
+            }
+
         return {
-            "estado": "Pipeline verificado",
-            "requiere_externa": False,
-            "nivel_confianza": "medio",
-            "justificación": "Consulta procesada sin bloqueos de seguridad"
+            "estado": "Pipeline superado con éxito, pero la bóveda de documentos se encuentra vacía o no se detectaron archivos .docx.",
+            "requiere_externa": True,
+            "nivel_confianza": "bajo",
+            "justificación": "Sin conocimiento local en la bóveda.",
+            "fuente": "boveda_vacia",
         }
         

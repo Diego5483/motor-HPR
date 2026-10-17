@@ -5,6 +5,8 @@ Migración a pytest conforme a la Constitución del proyecto HPR:
 - P3: pruebas deterministas (sin red, sin reloj, sin orden, sin estado global mutable).
 - P4: casos negativos obligatorios de seguridad.
 - D1/D5: misma entrada -> misma salida e identidad inmutable.
+- Contrato (Compuerta 8 / B3): ``process_pipeline`` retorna SIEMPRE un ``dict``;
+  el mensaje terminal se lee en ``resultado["estado"]``.
 """
 
 import pytest
@@ -61,7 +63,7 @@ def test_sovereign_gate_bloquea_entradas_maliciosas(engine, payload):
         state={"identity": IDENTIDAD_DETERMINISTA},
         truth=[],
     )
-    assert resultado == BLOQUEO_SOVEREIGN_GATE
+    assert resultado["estado"] == BLOQUEO_SOVEREIGN_GATE
 
 
 def test_sovereign_gate_acepta_payload_limpio(engine):
@@ -70,8 +72,8 @@ def test_sovereign_gate_acepta_payload_limpio(engine):
         state={"identity": IDENTIDAD_DETERMINISTA},
         truth=[],
     )
-    assert resultado != BLOQUEO_SOVEREIGN_GATE
-    assert resultado.startswith("Pipeline verificado con éxito")
+    assert resultado["estado"] != BLOQUEO_SOVEREIGN_GATE
+    assert resultado["estado"].startswith("Pipeline verificado con éxito")
 
 
 # ---------------------------------------------------------------------------
@@ -84,7 +86,7 @@ def test_nexus_root_rechaza_identidad_no_autorizada(engine):
         state={"identity": "IDENTIDAD_ATACANTE"},
         truth=[],
     )
-    assert resultado == DENEGACION_NEXUS_ROOT
+    assert resultado["estado"] == DENEGACION_NEXUS_ROOT
 
 
 def test_nexus_root_acepta_solo_identidad_determinista(engine):
@@ -120,8 +122,8 @@ def test_pipeline_extrae_conocimiento_fijo_de_la_boveda(isolated_engine):
         state={"identity": IDENTIDAD_DETERMINISTA},
         truth=[],
     )
-    assert resultado.startswith("Pipeline verificado con éxito")
-    assert "CONOCIMIENTO FIJO DE PRUEBA HPR" in resultado
+    assert resultado["estado"].startswith("Pipeline verificado con éxito")
+    assert "CONOCIMIENTO FIJO DE PRUEBA HPR" in resultado["estado"]
 
 
 def test_pipeline_reporta_boveda_vacia(empty_vault_engine):
@@ -130,7 +132,7 @@ def test_pipeline_reporta_boveda_vacia(empty_vault_engine):
         state={"identity": IDENTIDAD_DETERMINISTA},
         truth=[],
     )
-    assert "bóveda de documentos se encuentra vacía" in resultado
+    assert "bóveda de documentos se encuentra vacía" in resultado["estado"]
 
 
 def test_pipeline_es_determinista(isolated_engine):

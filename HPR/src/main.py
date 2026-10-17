@@ -788,6 +788,14 @@ async def chat_endpoint(
             truth=[],
         )
         
+        # Guarda defensiva (Compuerta 8 / B3): el contrato del pipeline es un dict en
+        # todas las rutas. Si una regresión devolviera otro tipo, se normaliza para
+        # evitar que el chat degrade a fallback local en lugar de responder/bloquear.
+        if not isinstance(response, dict):
+            response = {
+                "estado": response if isinstance(response, str) else "Respuesta no válida del pipeline"
+            }
+
         # Verificar bloqueo de seguridad
         if "BLOQUEO" in response.get("estado", ""):
             return response.get("estado", "Bloqueo de seguridad"), response.get("estado", "unknown"), False
