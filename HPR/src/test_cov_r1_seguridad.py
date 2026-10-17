@@ -39,7 +39,7 @@ for _p in (str(_HPR_DIR), str(_SRC_DIR)):
 
 from src.core.engine import evaluar_intencion_externa, triage_query  # noqa: E402
 from src.main import _execute_trigger_internal, app  # noqa: E402
-from src.models.contracts import CategoriaConsulta  # noqa: E402
+from src.models.contracts import CategoriaConsulta, NivelRiesgo  # noqa: E402
 from src.schemas import TriggerExecutionRequest, TriggerType  # noqa: E402
 from src.security_agent import HPRSecurityEngine  # noqa: E402
 from src.validador_niveles_confianza import ValidadorNivelesConfianza  # noqa: E402
@@ -268,22 +268,11 @@ def test_triage_vacia_es_desconocida() -> None:
     assert resultado.razones == ["consulta vacía"]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "DEFECTO DEMOSTRADO (R1): src/core/engine.py:203 pasa "
-        "nivel_riesgo='crítico' (con acento) mientras NivelRiesgo.CRITICO == "
-        "'critico' (src/models/contracts.py:311) -> pydantic ValidationError en "
-        "toda consulta con un patrón Sovereign Gate. La implementación duplicada "
-        "correcta está en src/core/triage.py:42 (usa NivelRiesgo.CRITICO). "
-        "P5.2 no modifica src/: requiere una compuerta de corrección autorizada."
-    ),
-)
 def test_triage_patron_soberano_es_seguridad() -> None:
-    """Patrón de ingesta maliciosa -> SEGURIDAD / crítico (contrato correcto)."""
+    """Patrón de ingesta maliciosa -> SEGURIDAD / crítico (regresión R1-fix)."""
     resultado = triage_query("<script>alerta</script>")
     assert resultado.categoria is CategoriaConsulta.SEGURIDAD
-    assert resultado.nivel_riesgo == "critico"
+    assert resultado.nivel_riesgo is NivelRiesgo.CRITICO
 
 
 def test_triage_sin_senales_reconocidas_es_desconocida() -> None:

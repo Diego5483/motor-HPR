@@ -200,7 +200,7 @@ def triage_query(consulta: str | None, knowledge_base: str = "") -> TriageResult
     if patron is not None:
         return TriageResult(
             categoria=CategoriaConsulta.SEGURIDAD,
-            nivel_riesgo="crítico",
+            nivel_riesgo=NivelRiesgo.CRITICO,
             razones=[f"patrón de ingesta bloqueado detectado: {patron}"],
         )
 
